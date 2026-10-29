@@ -1,0 +1,47 @@
+{
+  "pillbox": {
+    "label": "Pillbox Medical",
+    "respawn": {
+      "x": 311.8,
+      "y": -592.5,
+      "z": 43.28,
+      "heading": 340
+    },
+    "checkin": {
+      "x": 308.5,
+      "y": -595.3,
+      "z": 43.28
+    },
+    "blip": true
+  },
+  "sandy": {
+    "label": "Sandy Shores Medical",
+    "respawn": {
+      "x": 1839.2,
+      "y": 3672.9,
+      "z": 34.28,
+      "heading": 210
+    },
+    "checkin": {
+      "x": 1839.4,
+      "y": 3672.6,
+      "z": 34.28
+    },
+    "blip": true
+  },
+  "paleto": {
+    "label": "Paleto Bay Medical",
+    "respawn": {
+      "x": -247.8,
+      "y": 6331.2,
+      "z": 32.43,
+      "heading": 225
+    },
+    "checkin": {
+      "x": -254.9,
+      "y": 6331.0,
+      "z": 32.43
+    },
+    "blip": true
+  }
+}

@@ -1,0 +1,125 @@
+@import "tailwindcss";
+@import "@fontsource/inter/400.css";
+@import "@fontsource/inter/500.css";
+@import "@fontsource/inter/600.css";
+@import "@fontsource/inter/700.css";
+@import "@fortawesome/fontawesome-svg-core/styles.css" layer(base);
+
+/* 10px = 1vh: every utility is in vh (tgiann-ui foundation). Colours: docs/design.md (Dark Minimal). */
+@theme inline {
+  --spacing: 0.4vh;
+  --text-xs: 1.2vh;
+  --text-xs--line-height: 1.6vh;
+  --text-sm: 1.4vh;
+  --text-sm--line-height: 2vh;
+  --text-base: 1.6vh;
+  --text-base--line-height: 2.4vh;
+  --text-lg: 1.8vh;
+  --text-lg--line-height: 2.8vh;
+  --text-xl: 2vh;
+  --text-xl--line-height: 2.8vh;
+  --radius-sm: 0.4vh;
+  --radius-md: 0.6vh;
+  --radius-lg: 1vh;
+  --color-bg: var(--bg);
+  --color-panel: var(--panel);
+  --color-raised: var(--panel-raised);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-accent: var(--accent);
+  --color-accent-text: var(--accent-text);
+  --color-accent-hover: var(--accent-hover);
+  --color-text: var(--text);
+  --color-text-2: var(--text-2);
+  --color-text-3: var(--text-3);
+  --color-danger: var(--danger);
+  --color-warn: var(--warn);
+  --font-sans: "Inter", system-ui, sans-serif;
+  --animate-rise: rise 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  --animate-fade: fade 0.25s ease-out both;
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(2vh);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+:root {
+  --bg: #0b0e10;
+  --bg-rgb: 11, 14, 16;
+  --panel: #111619;
+  --panel-rgb: 17, 22, 25;
+  --panel-raised: #161c1f;
+  --line: #252d30;
+  --line-strong: #34403f;
+  --accent: #36ff9f;
+  --accent-hover: #2fe08c;
+  --accent-rgb: 54, 255, 159;
+  --accent-text: #0b0e10;
+  --text: #ffffff;
+  --text-2: #c9d1d3;
+  --text-3: #7d8a8e;
+  --danger: #f04a4a;
+  --danger-rgb: 240, 74, 74;
+  --warn: #f5b742;
+  --warn-rgb: 245, 183, 66;
+}
+
+@layer base {
+  html,
+  body,
+  #root {
+    margin: 0;
+    width: 100%;
+    height: 100%;
+    background: transparent;
+    overflow: hidden;
+    user-select: none;
+    font-synthesis: none;
+    font-family: var(--font-sans);
+    color: var(--text);
+  }
+  :where(button, [role="button"], a, [tabindex]):not(input):focus-visible {
+    outline: 0.2vh solid var(--accent);
+    outline-offset: 0.2vh;
+  }
+  :focus {
+    outline: none;
+  }
+  button {
+    cursor: pointer;
+  }
+  ::-webkit-scrollbar {
+    width: 0.6vh;
+    height: 0.6vh;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--line);
+    border-radius: 0.3vh;
+  }
+}
+
+
+@keyframes progress-fill {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
