@@ -45,6 +45,7 @@ export interface Hospital {
   respawn: Vec4;
   checkin: { x: number; y: number; z: number };
   blip: boolean;
+  blipStyle: { sprite: number; color: number; scale: number };
 }
 
 const names = (v: unknown): string[] =>
@@ -63,25 +64,27 @@ export function readSettings(raw: unknown): Settings {
   };
 }
 
-export function readHospitals(raw: unknown): Map<string, Hospital> {
-  const out = new Map<string, Hospital>();
-  for (const [id, value] of Object.entries(record(raw))) {
-    const v = record(value);
-    const c = record(v.checkin);
-    const respawn = vec4(v.respawn, { x: 0, y: 0, z: 0, heading: 0 });
-    out.set(id, {
-      id,
-      label: str(v.label, id, 48),
-      respawn,
-      checkin: {
-        x: num(c.x, respawn.x),
-        y: num(c.y, respawn.y),
-        z: num(c.z, respawn.z),
-      },
-      blip: bool(v.blip, true),
-    });
-  }
-  return out;
+/** One hospital of the panel's records file (`panel.records` / `world.records`). */
+export function readHospital(id: string, v: Record<string, unknown>): Hospital {
+  const c = record(v.checkin);
+  const style = record(v.blipStyle);
+  const respawn = vec4(v.respawn, { x: 0, y: 0, z: 0, heading: 0 });
+  return {
+    id,
+    label: str(v.label, id, 48),
+    respawn,
+    checkin: {
+      x: num(c.x, respawn.x),
+      y: num(c.y, respawn.y),
+      z: num(c.z, respawn.z),
+    },
+    blip: bool(v.blip, true),
+    blipStyle: {
+      sprite: int(style.sprite, 61, 0, 1000),
+      color: int(style.color, 1, 0, 100),
+      scale: num(style.scale, 0.7, 0.3, 2),
+    },
+  };
 }
 
 /** Client -> NUI messages. */

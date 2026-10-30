@@ -8,6 +8,8 @@ Death and hospitals: a downed character waits for a medic (medikit revive) or, a
 - While down the ped stays dead (the game blocks control, no spawnmanager respawns it); the countdown runs on the client clock and ai-core's prompt offers the hospital when it ends. The server checks the time again.
 - Revive is in place (`NetworkResurrectLocalPlayer` at the ped's position); respawn is at the nearest hospital's wake-up spot. A fee nobody can pay is waived.
 - The medikit: an on-duty medic revives the closest downed player within 3 m; anyone else heals themselves.
+- Down state on load follows lib `onCharacter` (also the players already in the game after a restart of ai-death: a stored `isdead` puts them down again); EMS counts and duty come from lib `online`.
+- Hospital blips: per hospital `blip` switch plus a `blipStyle` (panel `blip` widget).
 
 ## Contracts
 

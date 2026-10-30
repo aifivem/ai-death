@@ -55,8 +55,19 @@ function vec4(value, fallback) {
 		heading: num(v.heading, fallback.heading)
 	};
 }
-// ../../../packages/lib/src/shared/records.ts
-const isObject = (value) => typeof value == "object" && !!value && !Array.isArray(value);
+// ../../../packages/lib/src/shared/strict.ts
+function readText(value, max) {
+	if (typeof value != "string") return null;
+	let text = value.trim();
+	return text ? text.slice(0, max) : null;
+}
+const oneArg = (read) => ([value]) => {
+	let parsed = read(value);
+	return parsed === null ? null : [parsed];
+}, fail = (error) => ({
+	ok: !1,
+	error
+}), isObject = (value) => typeof value == "object" && !!value && !Array.isArray(value);
 function readRecords(raw, readOne) {
 	let out = new Map();
 	if (!isObject(raw)) return out;
@@ -223,7 +234,7 @@ const CORE = {
 	clientPlayerLoadedEvent: "ai-core:client:playerLoaded",
 	clientPlayerUnloadedEvent: "ai-core:client:playerUnloaded",
 	clientCharacterPortraitEvent: "ai-core:client:characterPortrait",
-	clientCharacterLookEvent: "ai-core:client:characterLook",
+	characterLooksEvent: "ai-core:client:characterLooks",
 	clientPromptPressedEvent: "ai-core:client:promptPressed",
 	clientCacheEvent: "ai-core:client:cache",
 	clientHudVisibleEvent: "ai-core:client:hudVisible",
@@ -238,7 +249,8 @@ const CORE = {
 	openCharactersEvent: "ai-core:client:openCharacters"
 }, PLAYER_BAGS = {
 	dead: "dead",
-	cuffed: "cuffed"
+	cuffed: "cuffed",
+	proximity: "proximity"
 }, ADMIN = {
 	ace: "ai.admin",
 	openCallback: "ai-core:admin:open",
@@ -300,6 +312,10 @@ function entityCoords(entity) {
 	};
 }
 const coordsOf = (source) => entityCoords(GetPlayerPed(String(source)));
+function isNear(source, point, metres) {
+	let [x = 0, y = 0, z = 0] = GetEntityCoords(GetPlayerPed(String(source))), dx = x - point.x, dy = y - point.y, dz = z - point.z;
+	return dx * dx + dy * dy + dz * dz <= metres * metres;
+}
 resourceExport(CORE.resource);
 const log$5 = createLogger(GetCurrentResourceName()), gates = new Set();
 on("playerDropped", () => {
@@ -409,7 +425,7 @@ function toPatch(value) {
 		default: return null;
 	}
 }
-const clone = (value) => value === void 0 ? value : JSON.parse(JSON.stringify(value)), core$14 = resourceExport(CORE.resource), ERR = {
+const clone = (value) => value === void 0 ? value : JSON.parse(JSON.stringify(value)), core$15 = resourceExport(CORE.resource), ERR = {
 	type: "ADMIN_ERR_TYPE",
 	range: "ADMIN_ERR_RANGE",
 	length: "ADMIN_ERR_LENGTH",
@@ -423,7 +439,7 @@ const clone = (value) => value === void 0 ? value : JSON.parse(JSON.stringify(va
 		if (cached && Date.now() - cached.at < 2e3) return cached.values.size > 0 ? cached.values : null;
 		let list = [];
 		try {
-			list = core$14.GetLookupValues(source);
+			list = core$15.GetLookupValues(source);
 		} catch {}
 		let values = new Set(Array.isArray(list) ? list.filter((v) => typeof v == "string") : []);
 		return this.lists.set(source, {
@@ -626,7 +642,7 @@ function writeSchema(resource, name, text, log) {
 	(0, node_fs_promises.mkdir)(dir, { recursive: !0 }).then(() => (0, node_fs_promises.writeFile)(`${dir}/${name}.schema.json`, text, "utf8")).catch((error) => log.error(`writing ${resource}/${path} failed`, error));
 }
 // ../../../packages/lib/src/server/admin/panel.ts
-const core$13 = resourceExport(CORE.resource), DEFAULT_KEY = "^[a-z0-9_]{2,32}$";
+const core$14 = resourceExport(CORE.resource), DEFAULT_KEY = "^[a-z0-9_]{2,32}$";
 function imported(spec, value) {
 	let base = clone(spec.newRecord ?? {}), out = {};
 	for (let name of Object.keys(spec.sections)) {
@@ -650,7 +666,7 @@ var AdminPanel = class {
 	constructor(schema) {
 		this.schema = schema;
 		for (let [name, spec] of Object.entries(schema.files)) this.load(name, spec);
-		registerExport("AdminPanelSnapshot", () => this.snapshot()), registerExport("AdminPanelApply", (admin, patch) => this.apply(admin, patch)), onClientCallback(ADMIN.worldChangesCallback(this.resource), () => Object.fromEntries(this.worldChanges)), setImmediate(() => core$13.RegisterAdminPanel(this.resource));
+		registerExport("AdminPanelSnapshot", () => this.snapshot()), registerExport("AdminPanelApply", (admin, patch) => this.apply(admin, patch)), onClientCallback(ADMIN.worldChangesCallback(this.resource), () => Object.fromEntries(this.worldChanges)), setImmediate(() => core$14.RegisterAdminPanel(this.resource));
 	}
 	get(file) {
 		return this.data.get(file) ?? {};
@@ -784,7 +800,7 @@ var AdminPanel = class {
 		let spec = this.schema.files[file], data = this.get(file), value = key === void 0 ? data : data[key] ?? null;
 		this.dataFiles.get(file)?.write(data), this.views.changed(file, key, value);
 		for (let handler of this.handlers.get(file) ?? []) handler(key, value);
-		if (core$13.AdminPanelChanged({
+		if (core$14.AdminPanelChanged({
 			resource: this.resource,
 			file,
 			key,
@@ -822,19 +838,19 @@ function notify(source, text, kind = "info", duration) {
 	emitNet(CORE.clientNotifyEvent, source, notification);
 }
 // ../../../packages/lib/src/server/inventory.ts
-const core$12 = resourceExport(CORE.resource), inventory = {
-	addItem: (inv, item, count = 1, metadata, slot) => core$12.AddItem(inv, item, count, metadata, slot),
-	removeItem: (inv, item, count = 1, metadata, slot) => core$12.RemoveItem(inv, item, count, metadata, slot),
-	getItemCount: (inv, item, metadata) => core$12.GetItemCount(inv, item, metadata),
-	hasItem: (inv, item, count = 1) => core$12.HasItem(inv, item, count),
-	canCarryItem: (inv, item, count = 1, metadata) => core$12.CanCarryItem(inv, item, count, metadata),
-	getItems: (inv) => core$12.GetItems(inv),
-	clearInventory: (inv) => core$12.ClearInventory(inv),
-	registerStash: (name, label, slots, maxWeight, jobs = []) => core$12.RegisterStash(name, label, slots, maxWeight, jobs),
-	openInventory: (source, inv) => core$12.OpenInventory(source, inv),
-	registerUsableItem: (name, handler) => core$12.RegisterUsableItem(name, handler),
-	getItemDefinition: (name) => core$12.GetItemDefinition(name)
-}, core$11 = resourceExport(CORE.resource);
+const core$13 = resourceExport(CORE.resource), inventory = {
+	addItem: (inv, item, count = 1, metadata, slot) => core$13.AddItem(inv, item, count, metadata, slot),
+	removeItem: (inv, item, count = 1, metadata, slot) => core$13.RemoveItem(inv, item, count, metadata, slot),
+	getItemCount: (inv, item, metadata) => core$13.GetItemCount(inv, item, metadata),
+	hasItem: (inv, item, count = 1) => core$13.HasItem(inv, item, count),
+	canCarryItem: (inv, item, count = 1, metadata) => core$13.CanCarryItem(inv, item, count, metadata),
+	getItems: (inv) => core$13.GetItems(inv),
+	clearInventory: (inv) => core$13.ClearInventory(inv),
+	registerStash: (name, label, slots, maxWeight, jobs = []) => core$13.RegisterStash(name, label, slots, maxWeight, jobs),
+	openInventory: (source, inv) => core$13.OpenInventory(source, inv),
+	registerUsableItem: (name, handler) => core$13.RegisterUsableItem(name, handler),
+	getItemDefinition: (name) => core$13.GetItemDefinition(name)
+}, core$12 = resourceExport(CORE.resource);
 var OnlinePlayers = class {
 	players = new Map();
 	onDuty = new Map();
@@ -843,7 +859,7 @@ var OnlinePlayers = class {
 		if (this.started) return;
 		this.started = !0;
 		let load = (source, character) => {
-			this.put(source, character, (core$11.GetJobs(source) ?? []).map((m) => m.job), (core$11.GetGangs(source) ?? []).map((m) => m.gang)), this.setDuty(source, core$11.GetDutyJob(source));
+			this.put(source, character, (core$12.GetJobs(source) ?? []).map((m) => m.job), (core$12.GetGangs(source) ?? []).map((m) => m.gang)), this.setDuty(source, core$12.GetDutyJob(source));
 		};
 		on(CORE.playerLoadedEvent, load), on(CORE.playerUnloadedEvent, (source) => this.drop(source)), on(CORE.jobsChangedEvent, (source, jobs) => {
 			let player = this.players.get(source);
@@ -852,8 +868,8 @@ var OnlinePlayers = class {
 			let player = this.players.get(source);
 			player && (player.gangs = gangs.map((m) => m.gang));
 		}), on(CORE.dutyChangedEvent, (source, job) => this.setDuty(source, job));
-		for (let source of core$11.GetLoadedSources()) {
-			let character = core$11.GetCharacter(source);
+		for (let source of core$12.GetLoadedSources()) {
+			let character = core$12.GetCharacter(source);
 			character && load(source, character);
 		}
 	}
@@ -896,10 +912,10 @@ var OnlinePlayers = class {
 		return this.start(), this.onDuty.get(job) ?? EMPTY;
 	}
 };
-const EMPTY = new Set();
-new OnlinePlayers(), resourceExport(CORE.resource);
+const EMPTY = new Set(), online = new OnlinePlayers();
+resourceExport(CORE.resource);
 // ../../../packages/lib/src/server/proximity.ts
-const core$9 = resourceExport(CORE.resource);
+const core$10 = resourceExport(CORE.resource);
 function within(point, radius, candidates) {
 	let out = [];
 	for (let source of candidates) {
@@ -909,9 +925,55 @@ function within(point, radius, candidates) {
 	return out;
 }
 function playersNear(source, radius) {
-	return within(coordsOf(source), radius, [source, ...core$9.GetPlayersInScope(source)]);
+	return within(coordsOf(source), radius, [source, ...core$10.GetPlayersInScope(source)]);
 }
-createLogger(GetCurrentResourceName());
+// ../../../packages/lib/src/server/players.ts
+const log$3 = createLogger(GetCurrentResourceName()), dropped = new Set();
+let listening = !1;
+function onDropped(fn) {
+	listening || (listening = !0, on("playerDropped", () => {
+		let source = Number(globalThis.source);
+		for (let handler of dropped) handler(source);
+	})), dropped.add(fn);
+}
+var PlayerMap = class extends Map {
+	constructor(options = {}) {
+		super(), onDropped((source) => {
+			if (!this.has(source)) return;
+			let value = this.get(source);
+			this.delete(source), options.onDrop?.(source, value);
+		});
+	}
+};
+function onCharacter(handlers) {
+	let live = new Map(), deliver = (source, character) => {
+		if (live.set(source, character.id), handlers.loaded) try {
+			let result = handlers.loaded(source, character);
+			result instanceof Promise && result.catch((error) => log$3.error(`character loaded handler failed for ${source}`, error));
+		} catch (error) {
+			log$3.error(`character loaded handler failed for ${source}`, error);
+		}
+	}, end = (source, charId) => {
+		if (live.delete(source)) try {
+			handlers.unloaded?.(source, charId);
+		} catch (error) {
+			log$3.error(`character unloaded handler failed for ${source}`, error);
+		}
+	};
+	on(CORE.playerLoadedEvent, (source, character) => {
+		let previous = live.get(source);
+		previous !== void 0 && end(source, previous), deliver(source, character);
+	}), on(CORE.playerUnloadedEvent, (source, charId) => end(source, charId)), onDropped((source) => setImmediate(() => {
+		let charId = live.get(source);
+		charId !== void 0 && end(source, charId);
+	})), setImmediate(() => {
+		for (let source of online.sources()) {
+			if (live.has(source)) continue;
+			let character = online.character(source);
+			character && deliver(source, character);
+		}
+	});
+}
 // ../../../packages/lib/src/server/command.ts
 const resource = GetCurrentResourceName();
 createLogger(resource), new class {
@@ -1014,7 +1076,7 @@ var Mirror = class {
 		GlobalState.set(this.key, value ?? null, !0), this.put(value);
 	}
 };
-resourceExport(CORE.resource), resourceExport(CORE.resource), resourceExport(CORE.resource), resourceExport(CORE.resource), resourceExport(CORE.resource), resourceExport(CORE.resource), resourceExport(CORE.resource), resourceExport(CORE.resource);
+resourceExport(CORE.resource), resourceExport(CORE.resource), resourceExport(CORE.resource), resourceExport(CORE.resource), resourceExport(CORE.resource), resourceExport(CORE.resource), resourceExport(CORE.resource), resourceExport(CORE.resource), resourceExport(CORE.resource);
 // resource/common/locale.ts
 const Locale = createLocale();
 GetCurrentResourceName(), IsDuplicityVersion();
@@ -1038,28 +1100,29 @@ function readSettings(raw) {
 		treatMaxEms: int(s.treatMaxEms, 2, 0, 100)
 	};
 }
-function readHospitals(raw) {
-	let out = new Map();
-	for (let [id, value] of Object.entries(record(raw))) {
-		let v = record(value), c = record(v.checkin), respawn = vec4(v.respawn, {
-			x: 0,
-			y: 0,
-			z: 0,
-			heading: 0
-		});
-		out.set(id, {
-			id,
-			label: str(v.label, id, 48),
-			respawn,
-			checkin: {
-				x: num(c.x, respawn.x),
-				y: num(c.y, respawn.y),
-				z: num(c.z, respawn.z)
-			},
-			blip: bool(v.blip, !0)
-		});
-	}
-	return out;
+function readHospital(id, v) {
+	let c = record(v.checkin), style = record(v.blipStyle), respawn = vec4(v.respawn, {
+		x: 0,
+		y: 0,
+		z: 0,
+		heading: 0
+	});
+	return {
+		id,
+		label: str(v.label, id, 48),
+		respawn,
+		checkin: {
+			x: num(c.x, respawn.x),
+			y: num(c.y, respawn.y),
+			z: num(c.z, respawn.z)
+		},
+		blip: bool(v.blip, !0),
+		blipStyle: {
+			sprite: int(style.sprite, 61, 0, 1e3),
+			color: int(style.color, 1, 0, 100),
+			scale: num(style.scale, .7, .3, 2)
+		}
+	};
 }
 // resource/server/schema.ts
 const money = {
@@ -1119,7 +1182,12 @@ const money = {
 					y: 0,
 					z: 0
 				},
-				blip: !0
+				blip: !0,
+				blipStyle: {
+					sprite: 61,
+					color: 1,
+					scale: .7
+				}
 			},
 			sections: {
 				label: {
@@ -1129,7 +1197,30 @@ const money = {
 				},
 				respawn: { type: "vec4" },
 				checkin: { type: "vec3" },
-				blip: { type: "bool" }
+				blip: { type: "bool" },
+				blipStyle: {
+					type: "object",
+					optional: !0,
+					fields: {
+						sprite: {
+							type: "number",
+							min: 0,
+							max: 1e3,
+							integer: !0
+						},
+						color: {
+							type: "number",
+							min: 0,
+							max: 100,
+							integer: !0
+						},
+						scale: {
+							type: "number",
+							min: .3,
+							max: 2
+						}
+					}
+				}
 			}
 		}
 	},
@@ -1251,36 +1342,32 @@ const money = {
 					widget: "switch",
 					path: "blip",
 					label: "ADMIN_F_BLIP"
+				},
+				{
+					widget: "blip",
+					path: "blipStyle",
+					label: "ADMIN_F_BLIP_STYLE",
+					showIf: {
+						path: "blip",
+						values: [!0]
+					}
 				}
 			]
 		}]
 	}]
-}, serverDeaths = new GlobalKey("ai:pedDeath", stateBoolean), deadState = new PlayerState(PLAYER_BAGS.dead, stateBoolean), core = resourceExport("ai-core"), panel = new AdminPanel(deathSchema), content = {
-	settings: readSettings(panel.get("settings")),
-	hospitals: readHospitals(panel.get("hospitals"))
-};
-panel.onChange("settings", () => content.settings = readSettings(panel.get("settings"))), panel.onChange("hospitals", () => content.hospitals = readHospitals(panel.get("hospitals"))), aiLogChannels({
+}, serverDeaths = new GlobalKey("ai:pedDeath", stateBoolean), deadState = new PlayerState(PLAYER_BAGS.dead, stateBoolean), core = resourceExport("ai-core"), panel = new AdminPanel(deathSchema), settings = panel.view("settings", readSettings), hospitals = panel.records("hospitals", readHospital);
+aiLogChannels({
 	deaths: {},
 	revives: {}
 });
-const fail = (error) => ({
-	ok: !1,
-	error
-}), pos = (source) => {
-	let [x = 0, y = 0, z = 0] = GetEntityCoords(GetPlayerPed(String(source)));
-	return {
-		x,
-		y,
-		z
-	};
-}, downed = new class {
-	since = new Map();
+const downed = new class {
+	since = new PlayerMap();
 	isDown(source) {
 		return this.since.has(source);
 	}
 	down(source, at = Date.now()) {
 		this.since.set(source, at), core.SetMeta(source, DEAD_META, !0), deadState.set(source, !0);
-		let left = Math.max(0, content.settings.respawnSeconds - Math.floor((Date.now() - at) / 1e3));
+		let left = Math.max(0, settings.value.respawnSeconds - Math.floor((Date.now() - at) / 1e3));
 		emitNet(EVENTS.down, source, left);
 	}
 	up(source, point) {
@@ -1288,29 +1375,29 @@ const fail = (error) => ({
 	}
 	timerDone(source) {
 		let at = this.since.get(source);
-		return at !== void 0 && Date.now() - at >= content.settings.respawnSeconds * 1e3 - 1e3;
+		return at !== void 0 && Date.now() - at >= settings.value.respawnSeconds * 1e3 - 1e3;
 	}
 	drop(source) {
 		this.since.delete(source);
 	}
 }();
 function nearestHospital(source) {
-	let p = pos(source), best, bestDistance = Infinity;
-	for (let h of content.hospitals.values()) {
+	let p = coordsOf(source), best, bestDistance = Infinity;
+	for (let h of hospitals.values()) {
 		let d = Math.hypot(p.x - h.respawn.x, p.y - h.respawn.y);
 		d < bestDistance && ([best, bestDistance] = [h, d]);
 	}
 	return best;
 }
-const emsOnDuty = () => content.settings.emsJobs.reduce((n, job) => n + core.GetOnDutyCount(job), 0), isEms = (source) => {
-	let duty = core.GetDutyJob(source);
-	return duty !== null && content.settings.emsJobs.includes(duty);
+const emsOnDuty = () => settings.value.emsJobs.reduce((n, job) => n + online.onDutyFor(job).size, 0), isEms = (source) => {
+	let duty = online.dutyJob(source);
+	return duty !== null && settings.value.emsJobs.includes(duty);
 };
 function wentDown(source, killer = null) {
-	!downed.isDown(source) && core.GetCharacter(source) && (downed.down(source), aiLog("deaths", "went down", {
+	!downed.isDown(source) && online.character(source) && (downed.down(source), aiLog("deaths", "went down", {
 		source,
 		target: killer ?? void 0,
-		metadata: pos(source)
+		metadata: { ...coordsOf(source) }
 	}));
 }
 on(CORE.playerDiedEvent, (source, killer) => wentDown(source, killer)), onClientEvent(EVENTS.died, (source) => {
@@ -1320,14 +1407,14 @@ on(CORE.playerDiedEvent, (source, killer) => wentDown(source, killer)), onClient
 	if (!downed.timerDone(source)) return fail("DEATH_ERR_WAIT");
 	let hospital = nearestHospital(source);
 	if (!hospital) return fail("DEATH_ERR_NO_HOSPITAL");
-	let fee = content.settings.respawnFee;
-	return fee > 0 && content.settings.accounts.some((a) => core.RemoveMoney(source, a, fee, "hospital")), content.settings.clearInventory && inventory.clearInventory(source), downed.up(source, hospital.respawn), { ok: !0 };
+	let fee = settings.value.respawnFee;
+	return fee > 0 && settings.value.accounts.some((a) => core.RemoveMoney(source, a, fee, "hospital")), settings.value.clearInventory && inventory.clearInventory(source), downed.up(source, hospital.respawn), { ok: !0 };
 }, { lock: !0 }), onClientCallback(EVENTS.treat, {
-	args: ([id]) => typeof id == "string" ? [id] : null,
+	args: oneArg((v) => readText(v, 64)),
 	lock: !0
 }, (source, id) => {
-	let hospital = content.hospitals.get(id), p = pos(source);
-	return !hospital || Math.hypot(p.x - hospital.checkin.x, p.y - hospital.checkin.y, p.z - hospital.checkin.z) > 3 ? fail("DEATH_ERR_FAR") : emsOnDuty() > content.settings.treatMaxEms ? fail("DEATH_ERR_EMS_ONLINE") : content.settings.accounts.some((a) => core.RemoveMoney(source, a, content.settings.treatPrice, "hospital:treatment")) ? (downed.up(source, null), { ok: !0 }) : fail("DEATH_ERR_MONEY");
+	let hospital = hospitals.get(id);
+	return !hospital || !isNear(source, hospital.checkin, 3) ? fail("DEATH_ERR_FAR") : emsOnDuty() > settings.value.treatMaxEms ? fail("DEATH_ERR_EMS_ONLINE") : settings.value.accounts.some((a) => core.RemoveMoney(source, a, settings.value.treatPrice, "hospital:treatment")) ? (downed.up(source, null), { ok: !0 }) : fail("DEATH_ERR_MONEY");
 });
 function useMedikit(source) {
 	if (isEms(source)) {
@@ -1339,9 +1426,12 @@ function useMedikit(source) {
 	}
 	return emitNet(EVENTS.revive, source, null), !0;
 }
-inventory.registerUsableItem("medikit", (source) => useMedikit(source)), on(CORE.playerLoadedEvent, (source, _character) => {
-	core.GetMeta(source, "isdead") === !0 && setTimeout(() => downed.down(source), 2e3);
-}), on(CORE.playerUnloadedEvent, (source) => downed.drop(source)), on("playerDropped", () => downed.drop(Number(globalThis.source)));
+inventory.registerUsableItem("medikit", (source) => useMedikit(source)), onCharacter({
+	loaded: (source) => {
+		core.GetMeta(source, "isdead") === !0 && setTimeout(() => downed.down(source), 2e3);
+	},
+	unloaded: (source) => downed.drop(source)
+});
 const api = {
 	Revive: (source) => typeof source != "number" || !downed.isDown(source) ? !1 : (downed.up(source, null), !0),
 	IsDead: (source) => typeof source == "number" && downed.isDown(source),

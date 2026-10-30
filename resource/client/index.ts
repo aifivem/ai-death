@@ -13,13 +13,14 @@ import {
   Points,
   showPrompt,
   stateBoolean,
-  triggerServerCallback,
+  callAction,
 } from "@aicore-fivem/lib/client";
+import { isRecord, readFinite } from "@aicore-fivem/lib/shared";
 import { PED_DEATH_STATE_KEY } from "@aicore-fivem/shared";
 import { Locale } from "common";
 import {
   EVENTS,
-  readHospitals,
+  readHospital,
   readSettings,
   type NuiMessage,
 } from "common/death";
@@ -27,15 +28,11 @@ import {
 const serverDeaths = new GlobalKey(PED_DEATH_STATE_KEY, stateBoolean);
 
 const world = new AdminWorld(["settings", "hospitals"]);
+const settings = world.view("settings", readSettings);
+const hospitals = world.records("hospitals", readHospital);
 const texts = loadLocaleTexts();
 const send = (m: NuiMessage): void => SendNUIMessage(m);
 const RESPAWN_PROMPT = "respawn";
-const isObj = (v: unknown): v is Record<string, unknown> =>
-  typeof v === "object" && v !== null;
-const errorText = (v: unknown, fallback: string): string => {
-  const key = isObj(v) && typeof v.error === "string" ? v.error : fallback;
-  return texts[key] ?? key;
-};
 
 /**
  * The player's own death: the server sees it (FXServer 38039+) or a 500 ms check reports it once; while down the ped stays dead (the game blocks
@@ -72,10 +69,7 @@ class Death {
       if (this.down)
         showPrompt(
           RESPAWN_PROMPT,
-          Locale(
-            "DEATH_PROMPT_RESPAWN",
-            readSettings(world.get("settings")).respawnFee,
-          ),
+          Locale("DEATH_PROMPT_RESPAWN", settings.value.respawnFee),
         );
     }, seconds * 1000);
   }
@@ -106,11 +100,7 @@ class Death {
   }
 
   async respawn(): Promise<void> {
-    const result: unknown = await triggerServerCallback(EVENTS.respawn).catch(
-      () => null,
-    );
-    if (!(isObj(result) && result.ok === true))
-      notify(errorText(result, "DEATH_ERR_WAIT"), "error");
+    await callAction(EVENTS.respawn, [], { fallback: "DEATH_ERR_WAIT" });
   }
 }
 
@@ -119,23 +109,22 @@ setInterval(() => death.watch(), 500);
 
 onServerEvent(
   EVENTS.down,
-  { args: ([seconds]) => (typeof seconds === "number" ? [seconds] : null) },
+  {
+    args: ([seconds]) => {
+      const left = readFinite(seconds);
+      return left === null ? null : [left];
+    },
+  },
   (seconds) => death.setDown(seconds),
 );
 type Point = { x: number; y: number; z: number; heading: number };
 /** null = revive in place; undefined = not a valid answer. */
 function toPoint(p: unknown): Point | null | undefined {
   if (p === null || p === undefined) return null;
-  return isObj(p) &&
-    typeof p.x === "number" &&
-    typeof p.y === "number" &&
-    typeof p.z === "number"
-    ? {
-        x: p.x,
-        y: p.y,
-        z: p.z,
-        heading: typeof p.heading === "number" ? p.heading : 0,
-      }
+  if (!isRecord(p)) return undefined;
+  const [x, y, z] = [readFinite(p.x), readFinite(p.y), readFinite(p.z)];
+  return x !== null && y !== null && z !== null
+    ? { x, y, z, heading: readFinite(p.heading) ?? 0 }
     : undefined;
 }
 onServerEvent(
@@ -150,11 +139,10 @@ onServerEvent(
 );
 
 async function treat(hospitalId: string): Promise<void> {
-  const r: unknown = await triggerServerCallback(EVENTS.treat, [
-    hospitalId,
-  ]).catch(() => null);
-  if (isObj(r) && r.ok === true) notify(Locale("DEATH_TREATED"), "success");
-  else notify(errorText(r, "DEATH_ERR_FAR"), "error");
+  const r = await callAction(EVENTS.treat, [hospitalId], {
+    fallback: "DEATH_ERR_FAR",
+  });
+  if (r) notify(Locale("DEATH_TREATED"), "success");
 }
 
 /** Hospitals: a blip at the wake-up spot and a check-in point each (paid treatment). */
@@ -163,8 +151,8 @@ const blips = new Blips();
 function rebuild(): void {
   points.clear();
   blips.clear();
-  const price = readSettings(world.get("settings")).treatPrice;
-  for (const h of readHospitals(world.get("hospitals")).values()) {
+  const price = settings.value.treatPrice;
+  for (const h of hospitals.values()) {
     points.add(`checkin:${h.id}`, {
       coords: h.checkin,
       label: Locale("DEATH_PROMPT_TREAT", price),
@@ -175,9 +163,7 @@ function rebuild(): void {
       blips.add(h.id, {
         coords: h.respawn,
         label: h.label,
-        sprite: 61,
-        color: 1,
-        scale: 0.7,
+        ...h.blipStyle,
       });
   }
 }

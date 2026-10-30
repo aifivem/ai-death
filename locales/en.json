@@ -48,5 +48,6 @@
   "ADMIN_H_RESPAWN": "Where players wake up, facing your direction.",
   "ADMIN_F_CHECKIN": "Check-in",
   "ADMIN_H_CHECKIN": "Where players pay for treatment.",
-  "ADMIN_F_BLIP": "Map blip"
+  "ADMIN_F_BLIP": "Map blip",
+  "ADMIN_F_BLIP_STYLE": "Blip look"
 }

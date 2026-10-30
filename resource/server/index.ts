@@ -2,11 +2,16 @@ import {
   AdminPanel,
   aiLog,
   aiLogChannels,
+  coordsOf,
   GlobalKey,
   inventory,
+  isNear,
   notify,
+  onCharacter,
   onClientCallback,
   onClientEvent,
+  online,
+  PlayerMap,
   playersNear,
   PlayerState,
   provideExport,
@@ -14,17 +19,13 @@ import {
   resourceExport,
   stateBoolean,
 } from "@aicore-fivem/lib/server";
-import {
-  CORE,
-  PED_DEATH_STATE_KEY,
-  PLAYER_BAGS,
-  type CharacterInfo,
-} from "@aicore-fivem/shared";
+import { fail, oneArg, readText } from "@aicore-fivem/lib/shared";
+import { CORE, PED_DEATH_STATE_KEY, PLAYER_BAGS } from "@aicore-fivem/shared";
 import { Locale } from "common";
 import {
   DEAD_META,
   EVENTS,
-  readHospitals,
+  readHospital,
   readSettings,
   type Hospital,
 } from "common/death";
@@ -35,33 +36,17 @@ const deadState = new PlayerState(PLAYER_BAGS.dead, stateBoolean);
 
 const core = resourceExport("ai-core");
 const panel = new AdminPanel(deathSchema);
-/** Panel content, parsed again after every change. */
-const content = {
-  settings: readSettings(panel.get("settings")),
-  hospitals: readHospitals(panel.get("hospitals")),
-};
-panel.onChange(
-  "settings",
-  () => (content.settings = readSettings(panel.get("settings"))),
-);
-panel.onChange(
-  "hospitals",
-  () => (content.hospitals = readHospitals(panel.get("hospitals"))),
-);
+/** Panel content, kept current by the panel. */
+const settings = panel.view("settings", readSettings);
+const hospitals = panel.records("hospitals", readHospital);
 aiLogChannels({ deaths: {}, revives: {} });
-
-const fail = (error: string) => ({ ok: false as const, error });
-const pos = (source: number) => {
-  const [x = 0, y = 0, z = 0] = GetEntityCoords(GetPlayerPed(String(source)));
-  return { x, y, z };
-};
 
 /**
  * Who is down and since when (server clock). The state also lives in ai-core's metadata (`isdead`) so a character
  * that leaves while down comes back down, and in the player's `dead` state bag for other scripts.
  */
 class Downed {
-  private readonly since = new Map<number, number>();
+  private readonly since = new PlayerMap<number>();
 
   isDown(source: number): boolean {
     return this.since.has(source);
@@ -73,7 +58,7 @@ class Downed {
     deadState.set(source, true);
     const left = Math.max(
       0,
-      content.settings.respawnSeconds - Math.floor((Date.now() - at) / 1000),
+      settings.value.respawnSeconds - Math.floor((Date.now() - at) / 1000),
     );
     emitNet(EVENTS.down, source, left);
   }
@@ -89,7 +74,7 @@ class Downed {
     const at = this.since.get(source);
     return (
       at !== undefined &&
-      Date.now() - at >= content.settings.respawnSeconds * 1000 - 1000
+      Date.now() - at >= settings.value.respawnSeconds * 1000 - 1000
     );
   }
 
@@ -101,10 +86,10 @@ class Downed {
 const downed = new Downed();
 
 function nearestHospital(source: number): Hospital | undefined {
-  const p = pos(source);
+  const p = coordsOf(source);
   let best: Hospital | undefined;
   let bestDistance = Infinity;
-  for (const h of content.hospitals.values()) {
+  for (const h of hospitals.values()) {
     const d = Math.hypot(p.x - h.respawn.x, p.y - h.respawn.y);
     if (d < bestDistance) [best, bestDistance] = [h, d];
   }
@@ -112,19 +97,19 @@ function nearestHospital(source: number): Hospital | undefined {
 }
 
 const emsOnDuty = (): number =>
-  content.settings.emsJobs.reduce((n, job) => n + core.GetOnDutyCount(job), 0);
+  settings.value.emsJobs.reduce((n, job) => n + online.onDutyFor(job).size, 0);
 const isEms = (source: number): boolean => {
-  const duty = core.GetDutyJob(source);
-  return duty !== null && content.settings.emsJobs.includes(duty);
+  const duty = online.dutyJob(source);
+  return duty !== null && settings.value.emsJobs.includes(duty);
 };
 
 function wentDown(source: number, killer: number | null = null): void {
-  if (downed.isDown(source) || !core.GetCharacter(source)) return;
+  if (downed.isDown(source) || !online.character(source)) return;
   downed.down(source);
   aiLog("deaths", "went down", {
     source,
     target: killer ?? undefined,
-    metadata: pos(source),
+    metadata: { ...coordsOf(source) },
   });
 }
 
@@ -149,13 +134,13 @@ onClientCallback(
     if (!downed.timerDone(source)) return fail("DEATH_ERR_WAIT");
     const hospital = nearestHospital(source);
     if (!hospital) return fail("DEATH_ERR_NO_HOSPITAL");
-    const fee = content.settings.respawnFee;
+    const fee = settings.value.respawnFee;
     // A fee nobody can pay is waived: nobody stays dead for being broke.
     if (fee > 0)
-      content.settings.accounts.some((a) =>
+      settings.value.accounts.some((a) =>
         core.RemoveMoney(source, a, fee, "hospital"),
       );
-    if (content.settings.clearInventory) inventory.clearInventory(source);
+    if (settings.value.clearInventory) inventory.clearInventory(source);
     downed.up(source, hospital.respawn);
     return { ok: true };
   },
@@ -164,27 +149,19 @@ onClientCallback(
 
 onClientCallback(
   EVENTS.treat,
-  { args: ([id]) => (typeof id === "string" ? [id] : null), lock: true },
+  { args: oneArg((v) => readText(v, 64)), lock: true },
   (source, id) => {
-    const hospital = content.hospitals.get(id);
-    const p = pos(source);
-    if (
-      !hospital ||
-      Math.hypot(
-        p.x - hospital.checkin.x,
-        p.y - hospital.checkin.y,
-        p.z - hospital.checkin.z,
-      ) > 3
-    )
+    const hospital = hospitals.get(id);
+    if (!hospital || !isNear(source, hospital.checkin, 3))
       return fail("DEATH_ERR_FAR");
-    if (emsOnDuty() > content.settings.treatMaxEms)
+    if (emsOnDuty() > settings.value.treatMaxEms)
       return fail("DEATH_ERR_EMS_ONLINE");
     if (
-      !content.settings.accounts.some((a) =>
+      !settings.value.accounts.some((a) =>
         core.RemoveMoney(
           source,
           a,
-          content.settings.treatPrice,
+          settings.value.treatPrice,
           "hospital:treatment",
         ),
       )
@@ -214,12 +191,14 @@ function useMedikit(source: number): boolean {
 
 inventory.registerUsableItem("medikit", (source: number) => useMedikit(source));
 
-on(CORE.playerLoadedEvent, (source: number, _character: CharacterInfo) => {
-  if (core.GetMeta(source, DEAD_META) === true)
-    setTimeout(() => downed.down(source), 2000);
+// A character stored down comes back down (also the players already in the game after a restart of this resource).
+onCharacter({
+  loaded: (source) => {
+    if (core.GetMeta(source, DEAD_META) === true)
+      setTimeout(() => downed.down(source), 2000);
+  },
+  unloaded: (source) => downed.drop(source),
 });
-on(CORE.playerUnloadedEvent, (source: number) => downed.drop(source));
-on("playerDropped", () => downed.drop(Number(globalThis.source)));
 
 /** Exports (own and qbx_medical names) for admin tools and jobs. */
 const api: Record<string, (...args: unknown[]) => unknown> = {
