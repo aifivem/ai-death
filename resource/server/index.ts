@@ -1,19 +1,8 @@
-import {
-  AdminPanel,
-  aiLog,
-  aiLogChannels,
-  inventory,
-  notify,
-  onClientCallback,
-  onClientEvent,
-  playersNear,
-  provideExport,
-  registerExport,
-  resourceExport,
-} from "@aicore-fivem/lib/server";
+import { AdminPanel, aiLog, aiLogChannels, GlobalKey, inventory, notify, onClientCallback, onClientEvent, playersNear, PlayerState, provideExport, registerExport, resourceExport, stateBoolean } from "@aicore-fivem/lib/server";
 import {
   CORE,
   PED_DEATH_STATE_KEY,
+  PLAYER_BAGS,
   type CharacterInfo,
 } from "@aicore-fivem/shared";
 import { Locale } from "common";
@@ -25,6 +14,9 @@ import {
   type Hospital,
 } from "common/death";
 import { deathSchema } from "./schema";
+
+const serverDeaths = new GlobalKey(PED_DEATH_STATE_KEY, stateBoolean);
+const deadState = new PlayerState(PLAYER_BAGS.dead, stateBoolean);
 
 const core = resourceExport("ai-core");
 const panel = new AdminPanel(deathSchema);
@@ -63,7 +55,7 @@ class Downed {
   down(source: number, at = Date.now()): void {
     this.since.set(source, at);
     core.SetMeta(source, DEAD_META, true);
-    Player(source).state.set("dead", true, true);
+    deadState.set(source, true);
     const left = Math.max(
       0,
       content.settings.respawnSeconds - Math.floor((Date.now() - at) / 1000),
@@ -74,7 +66,7 @@ class Downed {
   up(source: number, point: Hospital["respawn"] | null): void {
     this.since.delete(source);
     core.SetMeta(source, DEAD_META, false);
-    Player(source).state.set("dead", false, true);
+    deadState.set(source, false);
     emitNet(EVENTS.revive, source, point);
   }
 
@@ -128,7 +120,7 @@ on(CORE.playerDiedEvent, (source: number, killer: number | null) =>
 );
 onClientEvent(EVENTS.died, (source) => {
   if (
-    GlobalState[PED_DEATH_STATE_KEY] === true ||
+    serverDeaths.get() === true ||
     GetEntityHealth(GetPlayerPed(String(source))) > 0
   )
     return;

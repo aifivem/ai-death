@@ -1,18 +1,4 @@
-import {
-  AdminWorld,
-  Blips,
-  cache,
-  fadeOut,
-  hidePrompt,
-  loadLocaleTexts,
-  notify,
-  onPromptPressed,
-  onServerEvent,
-  player,
-  Points,
-  showPrompt,
-  triggerServerCallback,
-} from "@aicore-fivem/lib/client";
+import { AdminWorld, Blips, cache, fadeOut, GlobalKey, hidePrompt, loadLocaleTexts, notify, onPromptPressed, onServerEvent, player, Points, showPrompt, stateBoolean, triggerServerCallback } from "@aicore-fivem/lib/client";
 import { PED_DEATH_STATE_KEY } from "@aicore-fivem/shared";
 import { Locale } from "common";
 import {
@@ -21,6 +7,8 @@ import {
   readSettings,
   type NuiMessage,
 } from "common/death";
+
+const serverDeaths = new GlobalKey(PED_DEATH_STATE_KEY, stateBoolean);
 
 const world = new AdminWorld(["settings", "hospitals"]);
 const texts = loadLocaleTexts();
@@ -46,7 +34,7 @@ class Death {
     // The server reports deaths itself on FXServer 38039+ (ai-core's PED_DEATH_STATE_KEY): nothing to watch then.
     if (
       this.reported ||
-      GlobalState[PED_DEATH_STATE_KEY] === true ||
+      serverDeaths.get() === true ||
       !IsEntityDead(cache.ped)
     )
       return;
