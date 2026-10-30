@@ -1,4 +1,5 @@
 {
+  "$schema": "./schemas/settings.schema.json",
   "respawnSeconds": 300,
   "respawnFee": 1000,
   "accounts": [

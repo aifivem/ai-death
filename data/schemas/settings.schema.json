@@ -1,0 +1,70 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ai-death/data/settings.json",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "This file's JSON Schema (for editors)."
+    },
+    "respawnSeconds": {
+      "description": "Wait before respawn: Seconds a downed player waits before the hospital option appears.",
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 3600
+    },
+    "respawnFee": {
+      "description": "Hospital fee: Taken when waking up at the hospital; players who cannot pay go free.",
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 1000000
+    },
+    "accounts": {
+      "description": "Paid from: Money accounts tried in order.",
+      "type": "array",
+      "maxItems": 5,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "maxLength": 32,
+        "pattern": "^[a-z0-9_]{2,32}$"
+      }
+    },
+    "clearInventory": {
+      "description": "Lose items: Waking up at the hospital empties the inventory.",
+      "type": "boolean"
+    },
+    "emsJobs": {
+      "description": "Medic jobs: On-duty members of these jobs revive with a medikit.",
+      "type": "array",
+      "maxItems": 10,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "maxLength": 32,
+        "pattern": "^[a-z0-9_]{2,32}$"
+      }
+    },
+    "treatPrice": {
+      "description": "Treatment price: Check-in treatment heals fully for this price.",
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 1000000
+    },
+    "treatMaxEms": {
+      "description": "Medics for check-in: Check-in works only while at most this many medics are on duty.",
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 100
+    }
+  },
+  "required": [
+    "respawnSeconds",
+    "respawnFee",
+    "accounts",
+    "clearInventory",
+    "emsJobs",
+    "treatPrice",
+    "treatMaxEms"
+  ]
+}
