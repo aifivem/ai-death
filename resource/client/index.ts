@@ -1,12 +1,10 @@
-import { AdminWorld, cache, hidePrompt, loadLocaleTexts, notify, onPromptPressed, onServerEvent, showPrompt, triggerServerCallback, Zones } from "@aicore-fivem/lib/client";
+import { AdminWorld, Blips, cache, fadeOut, hidePrompt, loadLocaleTexts, notify, onPromptPressed, onServerEvent, player, Points, showPrompt, triggerServerCallback } from "@aicore-fivem/lib/client";
 import { PED_DEATH_STATE_KEY } from "@aicore-fivem/shared";
 import { Locale } from "common";
 import { EVENTS, readHospitals, readSettings, type NuiMessage } from "common/death";
 
 const world = new AdminWorld(["settings", "hospitals"]);
 const texts = loadLocaleTexts();
-const BLIP_TEXT = "AIDEATH_BLIP";
-AddTextEntry(BLIP_TEXT, "~a~");
 const send = (m: NuiMessage): void => SendNUIMessage(m);
 const RESPAWN_PROMPT = "respawn";
 const isObj = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null;
@@ -44,16 +42,13 @@ class Death {
   }
 
   revive(point: { x: number; y: number; z: number; heading: number } | null): void {
-    const ped = cache.ped;
-    const [x = 0, y = 0, z = 0] = GetEntityCoords(ped, false);
-    const at = point ?? { x, y, z, heading: GetEntityHeading(ped) };
-    if (IsEntityDead(ped) || point) {
-      DoScreenFadeOut(300);
-      setTimeout(() => {
+    const at = point ?? { ...player.coords(), heading: player.heading() };
+    if (IsEntityDead(cache.ped) || point) {
+      void fadeOut().then(() => {
         NetworkResurrectLocalPlayer(at.x, at.y, at.z, at.heading, 0, false);
         DoScreenFadeIn(600);
         this.heal();
-      }, 350);
+      });
     } else this.heal();
     this.down = false;
     this.reported = false;
@@ -63,6 +58,7 @@ class Death {
   }
 
   private heal(): void {
+    // Fresh read: a resurrect can give the player a new ped before the cache follows.
     const ped = PlayerPedId();
     SetEntityHealth(ped, GetEntityMaxHealth(ped));
     ClearPedBloodDamage(ped);
@@ -95,50 +91,32 @@ onServerEvent(
   (point) => death.revive(point),
 );
 
-/** Hospitals: blips and a check-in zone each with ai-core's prompt (paid treatment). */
-class Hospitals {
-  private readonly zones = new Zones();
-  private blips: number[] = [];
+async function treat(hospitalId: string): Promise<void> {
+  const r: unknown = await triggerServerCallback(EVENTS.treat, [hospitalId]).catch(() => null);
+  if (isObj(r) && r.ok === true) notify(Locale("DEATH_TREATED"), "success");
+  else notify(errorText(r, "DEATH_ERR_FAR"), "error");
+}
 
-  rebuild(): void {
-    this.zones.clear();
-    for (const blip of this.blips) RemoveBlip(blip);
-    this.blips = [];
-    const price = readSettings(world.get("settings")).treatPrice;
-    for (const h of readHospitals(world.get("hospitals")).values()) {
-      const id = `checkin:${h.id}`;
-      this.zones.add(id, {
-        shape: { type: "sphere", center: h.checkin, radius: 2 },
-        interval: 500,
-        onEnter: () => showPrompt(id, Locale("DEATH_PROMPT_TREAT", price)),
-        onExit: () => hidePrompt(id),
-      });
-      if (!h.blip) continue;
-      const blip = AddBlipForCoord(h.respawn.x, h.respawn.y, h.respawn.z);
-      SetBlipSprite(blip, 61);
-      SetBlipColour(blip, 1);
-      SetBlipScale(blip, 0.7);
-      SetBlipAsShortRange(blip, true);
-      BeginTextCommandSetBlipName(BLIP_TEXT);
-      AddTextComponentSubstringPlayerName(h.label);
-      EndTextCommandSetBlipName(blip);
-      this.blips.push(blip);
-    }
+/** Hospitals: a blip at the wake-up spot and a check-in point each (paid treatment). */
+const points = new Points();
+const blips = new Blips();
+function rebuild(): void {
+  points.clear();
+  blips.clear();
+  const price = readSettings(world.get("settings")).treatPrice;
+  for (const h of readHospitals(world.get("hospitals")).values()) {
+    points.add(`checkin:${h.id}`, { coords: h.checkin, label: Locale("DEATH_PROMPT_TREAT", price), icon: "kit-medical", onPressed: () => treat(h.id) });
+    if (h.blip) blips.add(h.id, { coords: h.respawn, label: h.label, sprite: 61, color: 1, scale: 0.7 });
   }
 }
 
-const hospitals = new Hospitals();
-hospitals.rebuild();
-world.onChange("hospitals", () => hospitals.rebuild());
-world.onChange("settings", () => hospitals.rebuild());
+rebuild();
+world.onChange("hospitals", rebuild);
+world.onChange("settings", rebuild);
 
+// The respawn prompt is not at a place, so it stays a bare prompt.
 onPromptPressed((id) => {
   if (id === RESPAWN_PROMPT) void death.respawn();
-  else if (id.startsWith("checkin:")) {
-    void triggerServerCallback(EVENTS.treat, [id.slice("checkin:".length)])
-      .catch(() => null)
-      .then((r) => (isObj(r) && r.ok === true ? notify(Locale("DEATH_TREATED"), "success") : notify(errorText(r, "DEATH_ERR_FAR"), "error")));
-  }
 });
 
 // QB scripts and admin menus revive with this client event; only the server may send it.

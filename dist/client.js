@@ -14,6 +14,29 @@ try{
 	/** Default time a caller waits for an answer before the promise rejects. */
 	const DEFAULT_CALLBACK_TIMEOUT = 3e4;
 
+// ../../../packages/lib/src/shared/wait.ts
+/** Resolves after `ms` milliseconds. */
+	function sleep(ms) {
+		return new Promise((resolve) => setTimeout(resolve, ms));
+	}
+	/**
+	* Resolves with the first value `check` returns that is not undefined, checking once per tick.
+	* Rejects after `timeoutMs` (default 10 s); pass `false` to wait forever.
+	* Return `cond || undefined` from `check` to wait for a truthy condition.
+	*/
+	function waitFor(check, timeoutMs = 1e4) {
+		return new Promise((resolve, reject) => {
+			const started = Date.now();
+			const poll = () => {
+				const value = check();
+				if (value !== void 0) return resolve(value);
+				if (timeoutMs !== false && Date.now() - started > timeoutMs) return reject(/* @__PURE__ */ new Error(`waitFor timed out after ${timeoutMs} ms`));
+				setTimeout(poll, 0);
+			};
+			poll();
+		});
+	}
+
 // ../../../packages/lib/src/shared/read.ts
 /** Small readers for panel content (`data/*.json`): every one returns the fallback when the value is missing or wrong. */
 	/** A finite number clamped to `[min, max]`, else the fallback. */
@@ -69,7 +92,7 @@ try{
 	}
 
 // ../../../packages/lib/src/client/netEvent.ts
-	const log$2 = createLogger(GetCurrentResourceName());
+	const log$4 = createLogger(GetCurrentResourceName());
 	/**
 	* Whether the net event being handled came from the server (read it before the first `await`). On a client only
 	* events from the server carry a source (65535 in the docs); a local emit by any resource carries none.
@@ -80,16 +103,16 @@ try{
 		onNet(name, (...raw) => {
 			if (!fromServer() || !handler) return;
 			const args = parse ? parse(raw) : [];
-			if (!args) return log$2.warn(`event ${name} from the server had invalid arguments`);
-			Promise.resolve().then(() => handler(...args)).catch((error) => log$2.error(`event ${name} failed`, error));
+			if (!args) return log$4.warn(`event ${name} from the server had invalid arguments`);
+			Promise.resolve().then(() => handler(...args)).catch((error) => log$4.error(`event ${name} failed`, error));
 		});
 	}
 
 // ../../../packages/lib/src/client/callback.ts
 	const resource$1 = GetCurrentResourceName();
-	const log$1 = createLogger(resource$1);
+	const log$3 = createLogger(resource$1);
 	const pending = /* @__PURE__ */ new Map();
-	let nextId = 0;
+	let nextId$1 = 0;
 	onNet(responseEvent(resource$1), (id, ok, result) => {
 		if (!fromServer()) return;
 		const entry = typeof id === "number" ? pending.get(id) : void 0;
@@ -104,7 +127,7 @@ try{
 	* parse it. Rejects when the server reports an error or does not answer within `timeoutMs`.
 	*/
 	function triggerServerCallback(name, args = [], timeoutMs = DEFAULT_CALLBACK_TIMEOUT) {
-		const id = ++nextId;
+		const id = ++nextId$1;
 		return new Promise((resolve, reject) => {
 			const timer = setTimeout(() => {
 				pending.delete(id);
@@ -157,6 +180,10 @@ try{
 		clientPromptPressedEvent: "ai-core:client:promptPressed",
 		/** (key: keyof PlayerCache, value) a cached value of the local player changed (one watcher in ai-core for every resource). */
 		clientCacheEvent: "ai-core:client:cache",
+		/** Server -> client callback: (model: string) the `CreateVehicleServerSetter` type of a model, null when the game has no such vehicle (ai-core's client answers for every resource, lib `spawnVehicle`). */
+		vehicleTypeCallback: "ai-core:vehicleType",
+		/** GlobalState: "prompt" | "target", how lib `Points` let players interact (ai-core panel setting). */
+		interactionStateKey: "ai:interaction",
 		charactersCallback: "ai-core:characters",
 		createCharacterCallback: "ai-core:createCharacter",
 		deleteCharacterCallback: "ai-core:deleteCharacter",
@@ -258,6 +285,11 @@ try{
 // ../../../packages/lib/src/client/cache.ts
 /** The unarmed "weapon" hash: cached as `false`. */
 	const UNARMED = GetHashKey("WEAPON_UNARMED") | 0;
+	/** The weapon in a ped's hand, `false` when unarmed. */
+	function readWeapon(ped) {
+		const weapon = GetSelectedPedWeapon(ped) | 0;
+		return weapon === UNARMED ? false : weapon;
+	}
 	/** The vehicle, seat and weapon of a ped right now (also ai-core's watcher). */
 	function readPlayerState(ped) {
 		const vehicle = GetVehiclePedIsIn(ped, false);
@@ -267,11 +299,10 @@ try{
 			seat = i;
 			break;
 		}
-		const weapon = GetSelectedPedWeapon(ped) | 0;
 		return {
 			vehicle: vehicle || false,
 			seat,
-			weapon: weapon === UNARMED ? false : weapon
+			weapon: readWeapon(ped)
 		};
 	}
 	/**
@@ -303,7 +334,7 @@ try{
 	* (measured with 1,000,000 zones): zones sit in a grid of 64 m cells and a check looks only at the player's cell and
 	* the zones the player is in.
 	*/
-	const log = createLogger(GetCurrentResourceName());
+	const log$2 = createLogger(GetCurrentResourceName());
 	const CELL = 64;
 	/** A zone wider than this many cells is kept in one list checked every time instead of in the grid. */
 	const MAX_CELLS = 64;
@@ -470,7 +501,7 @@ try{
 				if (inside) zone.options.onEnter?.();
 				else zone.options.onExit?.();
 			} catch (error) {
-				log.error("zone handler failed", error);
+				log$2.error("zone handler failed", error);
 			}
 		}
 	};
@@ -480,18 +511,29 @@ try{
 	function resourceExport(resource) {
 		return globalThis.exports[resource];
 	}
+	/** Whether a resource is running now. */
+	function isResourceStarted(resource) {
+		return GetResourceState(resource) === "started";
+	}
+	/** Calls an export of a resource whose exports have no type here (a third-party script); parse the result. */
+	function callExport(resource, name, ...args) {
+		const fn = Reflect.get(Object(globalThis.exports[resource]), name);
+		if (typeof fn !== "function") throw new Error(`${resource} has no export ${name}`);
+		return Reflect.apply(fn, void 0, args);
+	}
 
 // ../../../packages/lib/src/client/prompt.ts
-/**
+	const core$3 = resourceExport(CORE.resource);
+	/**
 	* ai-core's prompt (the "press E" box on the right): this resource shows and hides its own prompts by id; the
 	* interaction key is one rebindable keybind in ai-core, so nothing polls keys per frame. Show a prompt on a zone's
 	* enter, hide it on exit, act in `onPromptPressed`.
 	*/
 	function showPrompt(id, text) {
-		resourceExport(CORE.resource).ShowPrompt(id, text);
+		core$3.ShowPrompt(id, text);
 	}
 	function hidePrompt(id) {
-		resourceExport(CORE.resource).HidePrompt(id);
+		core$3.HidePrompt(id);
 	}
 	/** The player pressed the interaction key while this resource's prompt `id` was the one on top. */
 	function onPromptPressed(handler) {
@@ -501,10 +543,416 @@ try{
 		});
 	}
 
+// ../../../packages/lib/src/client/blip.ts
+	const LABEL = `AI_BLIP_${GetCurrentResourceName()}`;
+	AddTextEntry(LABEL, "~a~");
+	/** Creates a named blip at a point and returns its handle (`RemoveBlip` it, or use `Blips`). */
+	function createBlip(options) {
+		const { x, y, z } = options.coords;
+		const blip = AddBlipForCoord(x, y, z);
+		SetBlipSprite(blip, options.sprite);
+		SetBlipColour(blip, options.color);
+		SetBlipScale(blip, options.scale ?? .8);
+		SetBlipDisplay(blip, options.display ?? 4);
+		SetBlipAsShortRange(blip, options.shortRange ?? true);
+		if (options.label !== void 0) {
+			BeginTextCommandSetBlipName(LABEL);
+			AddTextComponentSubstringPlayerName(options.label);
+			EndTextCommandSetBlipName(blip);
+		}
+		return blip;
+	}
+	/** A script's blips by id: `add` replaces a blip with the same id, `clear` removes them all (a panel rebuild). */
+	var Blips = class {
+		blips = /* @__PURE__ */ new Map();
+		add(id, options) {
+			this.remove(id);
+			const blip = createBlip(options);
+			this.blips.set(id, blip);
+			return blip;
+		}
+		get(id) {
+			return this.blips.get(id);
+		}
+		remove(id) {
+			const blip = this.blips.get(id);
+			if (blip === void 0) return;
+			RemoveBlip(blip);
+			this.blips.delete(id);
+		}
+		clear() {
+			for (const blip of this.blips.values()) RemoveBlip(blip);
+			this.blips.clear();
+		}
+	};
+
+// ../../../packages/lib/src/client/streaming.ts
+/**
+	* Loads a model and resolves with its hash. Rejects when the model does not exist or does not load in time.
+	* Call `SetModelAsNoLongerNeeded(hash)` once the entity is created.
+	*/
+	async function requestModel(model, timeoutMs = 1e4) {
+		const hash = typeof model === "number" ? model : GetHashKey(model);
+		if (!IsModelInCdimage(hash)) throw new Error(`model ${model} does not exist`);
+		RequestModel(hash);
+		await waitFor(() => HasModelLoaded(hash) || void 0, timeoutMs);
+		return hash;
+	}
+	/** Loads an animation dictionary. Call `RemoveAnimDict(dict)` when it is no longer played. */
+	async function requestAnimDict(dict, timeoutMs = 1e4) {
+		if (!DoesAnimDictExist(dict)) throw new Error(`anim dict ${dict} does not exist`);
+		RequestAnimDict(dict);
+		await waitFor(() => HasAnimDictLoaded(dict) || void 0, timeoutMs);
+		return dict;
+	}
+
+// ../../../packages/lib/src/client/localPed.ts
+	const log$1 = createLogger(GetCurrentResourceName());
+	/** One zone set for every local ped of this resource: peds exist only while their player is near. */
+	const zones = new Zones();
+	let nextId = 0;
+	/**
+	* A ped only this client sees (a shopkeeper, a job NPC): created when the player comes near, deleted when they leave,
+	* frozen, invincible and deaf to events. Never networked, so strict entity lockdown does not matter.
+	*/
+	var LocalPed = class {
+		options;
+		id = `ped:${++nextId}`;
+		handle = 0;
+		wanted = false;
+		constructor(options) {
+			this.options = options;
+			const { x, y, z } = options.coords;
+			zones.add(this.id, {
+				shape: {
+					type: "sphere",
+					center: {
+						x,
+						y,
+						z
+					},
+					radius: options.distance ?? 50
+				},
+				interval: 1e3,
+				onEnter: () => void this.spawn(),
+				onExit: () => this.despawn()
+			});
+		}
+		/** The ped while it exists, else 0. */
+		get entity() {
+			return this.handle;
+		}
+		/** Deletes the ped for good. */
+		remove() {
+			zones.remove(this.id);
+			this.despawn();
+		}
+		async spawn() {
+			this.wanted = true;
+			const o = this.options;
+			try {
+				const hash = await requestModel(o.model);
+				if (o.anim) await requestAnimDict(o.anim.dict);
+				if (!this.wanted || this.handle) return;
+				const { x, y, z, heading } = o.coords;
+				const ped = CreatePed(4, hash, x, y, o.ground === false ? z : z - 1, heading, false, false);
+				SetModelAsNoLongerNeeded(hash);
+				FreezeEntityPosition(ped, true);
+				SetEntityInvincible(ped, true);
+				SetBlockingOfNonTemporaryEvents(ped, true);
+				SetPedCanRagdoll(ped, false);
+				if (o.scenario) TaskStartScenarioInPlace(ped, o.scenario, 0, true);
+				else if (o.anim) TaskPlayAnim(ped, o.anim.dict, o.anim.clip, 8, 8, -1, 1, 0, false, false, false);
+				this.handle = ped;
+				o.onSpawn?.(ped);
+			} catch (error) {
+				log$1.error(`local ped ${o.model} could not be created`, error);
+			}
+		}
+		despawn() {
+			this.wanted = false;
+			if (!this.handle) return;
+			const ped = this.handle;
+			this.handle = 0;
+			this.options.onDespawn?.(ped);
+			DeleteEntity(ped);
+		}
+	};
+	on("onResourceStop", (resource) => {
+		if (resource === GetCurrentResourceName()) zones.clear();
+	});
+
+// ../../../packages/lib/src/client/point.ts
+	const log = createLogger(GetCurrentResourceName());
+	const TARGET = "ox_target";
+	const target = (name, ...args) => callExport(TARGET, name, ...args);
+	/** Prompt mode, or target mode when the owner picked it and a resource answers the ox_target API (ai-target does). */
+	const style = () => GlobalState[CORE.interactionStateKey] === "target" && isResourceStarted(TARGET) ? "target" : "prompt";
+	const groups = /* @__PURE__ */ new Set();
+	const byPrompt = /* @__PURE__ */ new Map();
+	let busy = false;
+	let nextGroup = 0;
+	var Point = class {
+		promptId;
+		options;
+		inside = false;
+		ped = null;
+		targetZone = null;
+		/** The prompt text on screen, null while hidden. */
+		shown = null;
+		/** The label the target option was registered with. */
+		targetLabel = null;
+		constructor(promptId, options) {
+			this.promptId = promptId;
+			this.options = options;
+		}
+		text() {
+			const { label } = this.options;
+			if (typeof label === "string") return label;
+			try {
+				return label();
+			} catch (error) {
+				log.error("point label failed", error);
+				return "";
+			}
+		}
+		allowed() {
+			try {
+				return this.options.canShow?.() ?? true;
+			} catch (error) {
+				log.error("point canShow failed", error);
+				return false;
+			}
+		}
+		press() {
+			if (busy || !this.allowed()) return;
+			let result;
+			try {
+				result = this.options.onPressed();
+			} catch (error) {
+				return log.error("point onPressed failed", error);
+			}
+			if (!(result instanceof Promise)) return;
+			busy = true;
+			result.catch((error) => log.error("point onPressed failed", error)).finally(() => busy = false);
+		}
+		/** The prompt follows inside + canShow + the current label (prompt mode only). */
+		sync(group) {
+			const text = (this.options.promptOnly ? "prompt" : group) === "prompt" && this.inside && this.allowed() ? this.text() : null;
+			if (text === this.shown) return;
+			this.shown = text;
+			if (text !== null) showPrompt(this.promptId, text);
+			else hidePrompt(this.promptId);
+		}
+		targetOption() {
+			this.targetLabel = this.text();
+			return [{
+				name: this.promptId,
+				label: this.targetLabel,
+				icon: this.options.icon,
+				distance: this.options.radius ?? 2,
+				canInteract: () => this.allowed(),
+				onSelect: () => this.press()
+			}];
+		}
+	};
+	/**
+	* Interaction points of a script (counters, shop doors, NPCs): one object per point instead of zones + prompts +
+	* blips + peds by hand. Each point shows as ai-core's prompt (interaction key) or as a target option, as the owner
+	* picks in ai-core's panel (Interaction); the same `onPressed` runs either way. Rebuild with `clear()` + `add()` when
+	* the panel changes the points; call `refresh()` when what `canShow` reads changes (job, duty, vehicle).
+	*/
+	var Points = class {
+		zones = new Zones();
+		blips = new Blips();
+		points = /* @__PURE__ */ new Map();
+		prefix = `pt${++nextGroup}:`;
+		constructor() {
+			groups.add(this);
+		}
+		/** Adds (or replaces) a point. */
+		add(id, options) {
+			this.remove(id);
+			const point = new Point(this.prefix + id, options);
+			this.points.set(id, point);
+			byPrompt.set(point.promptId, point);
+			if (options.ped) {
+				const ped = options.ped;
+				point.ped = new LocalPed({
+					...ped,
+					coords: ped.coords ?? {
+						...options.coords,
+						heading: 0
+					},
+					onSpawn: (entity) => style() === "target" && !options.promptOnly && target("addLocalEntity", entity, point.targetOption()),
+					onDespawn: (entity) => style() === "target" && !options.promptOnly && target("removeLocalEntity", entity, point.promptId)
+				});
+			}
+			if (options.blip) this.blips.add(id, {
+				...options.blip,
+				coords: options.blip.coords ?? options.coords
+			});
+			this.zones.add(id, {
+				shape: options.height !== void 0 ? {
+					type: "cylinder",
+					center: options.coords,
+					radius: options.radius ?? 2,
+					height: options.height
+				} : {
+					type: "sphere",
+					center: options.coords,
+					radius: options.radius ?? 2
+				},
+				interval: options.interval,
+				onEnter: () => {
+					point.inside = true;
+					point.sync(style());
+					options.onEnter?.();
+				},
+				onExit: () => {
+					point.inside = false;
+					point.sync(style());
+					options.onExit?.();
+				}
+			});
+			this.attach(point, style());
+		}
+		remove(id) {
+			const point = this.points.get(id);
+			if (!point) return;
+			this.zones.remove(id);
+			this.detach(point);
+			point.sync("target");
+			point.ped?.remove();
+			this.blips.remove(id);
+			byPrompt.delete(point.promptId);
+			this.points.delete(id);
+		}
+		clear() {
+			for (const id of [...this.points.keys()]) this.remove(id);
+		}
+		/**
+		* Checks `canShow` and a function `label` again (prompt mode; targets ask `canShow` when opened and get a changed
+		* label re-registered). Inside a state bag change handler the new value is not readable yet: call it in a `setTimeout`.
+		*/
+		refresh(id) {
+			const mode = style();
+			const one = id !== void 0 ? this.points.get(id) : void 0;
+			for (const point of one ? [one] : id === void 0 ? this.points.values() : []) {
+				point.sync(mode);
+				if (mode === "target" && !point.options.promptOnly && typeof point.options.label === "function" && point.targetLabel !== point.text()) {
+					this.detach(point);
+					this.attach(point, mode);
+				}
+			}
+		}
+		isInside(id) {
+			return this.points.get(id)?.inside ?? false;
+		}
+		/** Puts every point on the current interaction style (style switch, target resource restart). */
+		restyle() {
+			const mode = style();
+			for (const point of this.points.values()) {
+				this.detach(point);
+				this.attach(point, mode);
+				point.sync(mode);
+			}
+		}
+		attach(point, mode) {
+			if (mode !== "target" || point.options.promptOnly) return;
+			const ped = point.ped?.entity;
+			if (point.ped) {
+				if (ped) target("addLocalEntity", ped, point.targetOption());
+				return;
+			}
+			point.targetZone = target("addSphereZone", {
+				coords: point.options.coords,
+				radius: point.options.targetRadius ?? 1,
+				options: point.targetOption()
+			});
+		}
+		detach(point) {
+			if (!isResourceStarted(TARGET)) return void (point.targetZone = null);
+			if (point.targetZone != null) target("removeZone", point.targetZone);
+			point.targetZone = null;
+			const ped = point.ped?.entity;
+			if (ped) target("removeLocalEntity", ped, point.promptId);
+		}
+	};
+	onPromptPressed((id) => byPrompt.get(id)?.press());
+	const restyleAll = () => {
+		for (const group of groups) group.restyle();
+	};
+	AddStateBagChangeHandler(CORE.interactionStateKey, "global", () => setTimeout(restyleAll, 0));
+	for (const event of ["onClientResourceStart", "onClientResourceStop"]) on(event, (resource) => {
+		if (resource === TARGET || resource === "ai-target") setTimeout(restyleAll, 0);
+	});
+
+// ../../../packages/lib/src/client/player.ts
+/** Fades the screen out and resolves once it is black. */
+	async function fadeOut(ms = 300) {
+		DoScreenFadeOut(ms);
+		await waitFor(() => IsScreenFadedOut() || void 0, ms + 2e3).catch(() => void 0);
+	}
+	/**
+	* The local player's ped, like ox_core's player object: position, moves and animations in one place. Reads use
+	* `cache.ped` (loops); one-off actions read the ped fresh, so they also work right after a model change.
+	*/
+	const player = {
+		get ped() {
+			return cache.ped;
+		},
+		coords() {
+			const [x = 0, y = 0, z = 0] = GetEntityCoords(cache.ped, false);
+			return {
+				x,
+				y,
+				z
+			};
+		},
+		heading() {
+			return GetEntityHeading(cache.ped);
+		},
+		/** Distance from the ped to a point, in metres. */
+		distanceTo(point) {
+			const [x = 0, y = 0, z = 0] = GetEntityCoords(cache.ped, false);
+			return Math.hypot(x - point.x, y - point.y, z - point.z);
+		},
+		freeze(state) {
+			FreezeEntityPosition(PlayerPedId(), state);
+		},
+		/** Moves the player and waits for the collision there, behind a fade unless `fade: false`. */
+		async teleport(to, options = {}) {
+			const fade = options.fade !== false;
+			if (fade) await fadeOut();
+			const ped = PlayerPedId();
+			RequestCollisionAtCoord(to.x, to.y, to.z);
+			if (options.keepVehicle) SetPedCoordsKeepVehicle(ped, to.x, to.y, to.z);
+			else if (options.ground === false) SetEntityCoordsNoOffset(ped, to.x, to.y, to.z, false, false, false);
+			else SetEntityCoords(ped, to.x, to.y, to.z, false, false, false, false);
+			if (options.heading !== void 0) SetEntityHeading(ped, options.heading);
+			await waitFor(() => HasCollisionLoadedAroundEntity(ped) || void 0, 5e3).catch(() => void 0);
+			if (fade) {
+				await sleep(100);
+				DoScreenFadeIn(400);
+			}
+		},
+		/** Plays an animation on the ped (loads and frees the dictionary); resolves when it started. */
+		async playAnim(dict, clip, options = {}) {
+			await requestAnimDict(dict);
+			TaskPlayAnim(PlayerPedId(), dict, clip, options.blendIn ?? 8, options.blendOut ?? -8, options.duration ?? -1, options.flag ?? 49, 0, false, false, false);
+			RemoveAnimDict(dict);
+		},
+		stopAnim() {
+			ClearPedTasks(PlayerPedId());
+		}
+	};
+
 // ../../../packages/lib/src/client/notify.ts
-/** Shows a notification card on this player's screen (ai-core draws it); `text` is already translated. */
+	const core$2 = resourceExport(CORE.resource);
+	/** Shows a notification card on this player's screen (ai-core draws it); `text` is already translated. */
 	function notify(text, kind = "info", duration) {
-		resourceExport(CORE.resource).Notify({
+		core$2.Notify({
 			text,
 			kind,
 			duration
@@ -512,7 +960,8 @@ try{
 	}
 
 // ../../../packages/lib/src/client/menu.ts
-/** Menus and input dialogs this resource asked ai-core for, waiting for the player's answer. */
+	const core$1 = resourceExport(CORE.resource);
+	/** Menus and input dialogs this resource asked ai-core for, waiting for the player's answer. */
 	var Requests = class {
 		resource = GetCurrentResourceName();
 		waiting = /* @__PURE__ */ new Map();
@@ -539,6 +988,9 @@ try{
 		}
 	};
 	const requests = new Requests();
+
+// ../../../packages/lib/src/client/inventory.ts
+	const core = resourceExport(CORE.resource);
 
 // ../../../packages/lib/src/client/vehicleProps.ts
 	const MOD_TYPES = Array.from({ length: 50 }, (_, i) => i);
@@ -648,8 +1100,6 @@ try{
 // resource/client/index.ts
 	const world = new AdminWorld(["settings", "hospitals"]);
 	const texts = loadLocaleTexts();
-	const BLIP_TEXT = "AIDEATH_BLIP";
-	AddTextEntry(BLIP_TEXT, "~a~");
 	const send = (m) => SendNUIMessage(m);
 	const RESPAWN_PROMPT = "respawn";
 	const isObj = (v) => typeof v === "object" && v !== null;
@@ -687,22 +1137,16 @@ try{
 			}, seconds * 1e3);
 		}
 		revive(point) {
-			const ped = cache.ped;
-			const [x = 0, y = 0, z = 0] = GetEntityCoords(ped, false);
 			const at = point ?? {
-				x,
-				y,
-				z,
-				heading: GetEntityHeading(ped)
+				...player.coords(),
+				heading: player.heading()
 			};
-			if (IsEntityDead(ped) || point) {
-				DoScreenFadeOut(300);
-				setTimeout(() => {
-					NetworkResurrectLocalPlayer(at.x, at.y, at.z, at.heading, 0, false);
-					DoScreenFadeIn(600);
-					this.heal();
-				}, 350);
-			} else this.heal();
+			if (IsEntityDead(cache.ped) || point) fadeOut().then(() => {
+				NetworkResurrectLocalPlayer(at.x, at.y, at.z, at.heading, 0, false);
+				DoScreenFadeIn(600);
+				this.heal();
+			});
+			else this.heal();
 			this.down = false;
 			this.reported = false;
 			if (this.respawnTimer) clearTimeout(this.respawnTimer);
@@ -739,47 +1183,39 @@ try{
 		const point = toPoint(p);
 		return point === void 0 ? null : [point];
 	} }, (point) => death.revive(point));
-	/** Hospitals: blips and a check-in zone each with ai-core's prompt (paid treatment). */
-	var Hospitals = class {
-		zones = new Zones();
-		blips = [];
-		rebuild() {
-			this.zones.clear();
-			for (const blip of this.blips) RemoveBlip(blip);
-			this.blips = [];
-			const price = readSettings(world.get("settings")).treatPrice;
-			for (const h of readHospitals(world.get("hospitals")).values()) {
-				const id = `checkin:${h.id}`;
-				this.zones.add(id, {
-					shape: {
-						type: "sphere",
-						center: h.checkin,
-						radius: 2
-					},
-					interval: 500,
-					onEnter: () => showPrompt(id, Locale("DEATH_PROMPT_TREAT", price)),
-					onExit: () => hidePrompt(id)
-				});
-				if (!h.blip) continue;
-				const blip = AddBlipForCoord(h.respawn.x, h.respawn.y, h.respawn.z);
-				SetBlipSprite(blip, 61);
-				SetBlipColour(blip, 1);
-				SetBlipScale(blip, .7);
-				SetBlipAsShortRange(blip, true);
-				BeginTextCommandSetBlipName(BLIP_TEXT);
-				AddTextComponentSubstringPlayerName(h.label);
-				EndTextCommandSetBlipName(blip);
-				this.blips.push(blip);
-			}
+	async function treat(hospitalId) {
+		const r = await triggerServerCallback(EVENTS.treat, [hospitalId]).catch(() => null);
+		if (isObj(r) && r.ok === true) notify(Locale("DEATH_TREATED"), "success");
+		else notify(errorText(r, "DEATH_ERR_FAR"), "error");
+	}
+	/** Hospitals: a blip at the wake-up spot and a check-in point each (paid treatment). */
+	const points = new Points();
+	const blips = new Blips();
+	function rebuild() {
+		points.clear();
+		blips.clear();
+		const price = readSettings(world.get("settings")).treatPrice;
+		for (const h of readHospitals(world.get("hospitals")).values()) {
+			points.add(`checkin:${h.id}`, {
+				coords: h.checkin,
+				label: Locale("DEATH_PROMPT_TREAT", price),
+				icon: "kit-medical",
+				onPressed: () => treat(h.id)
+			});
+			if (h.blip) blips.add(h.id, {
+				coords: h.respawn,
+				label: h.label,
+				sprite: 61,
+				color: 1,
+				scale: .7
+			});
 		}
-	};
-	const hospitals = new Hospitals();
-	hospitals.rebuild();
-	world.onChange("hospitals", () => hospitals.rebuild());
-	world.onChange("settings", () => hospitals.rebuild());
+	}
+	rebuild();
+	world.onChange("hospitals", rebuild);
+	world.onChange("settings", rebuild);
 	onPromptPressed((id) => {
 		if (id === RESPAWN_PROMPT) death.respawn();
-		else if (id.startsWith("checkin:")) triggerServerCallback(EVENTS.treat, [id.slice(8)]).catch(() => null).then((r) => isObj(r) && r.ok === true ? notify(Locale("DEATH_TREATED"), "success") : notify(errorText(r, "DEATH_ERR_FAR"), "error"));
 	});
 	onServerEvent("hospital:client:Revive", () => death.revive(null));
 
