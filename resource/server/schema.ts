@@ -1,12 +1,17 @@
-import type { PanelSchema } from "@aicore-fivem/shared"
+import type { PanelSchema } from "@aicore-fivem/shared";
 
-const money = { type: "number", min: 0, max: 1_000_000, integer: true } as const
+const money = {
+  type: "number",
+  min: 0,
+  max: 1_000_000,
+  integer: true,
+} as const;
 const names = {
   type: "names",
   max: 10,
   itemMax: 32,
   pattern: "^[a-z0-9_]{2,32}$",
-} as const
+} as const;
 
 /** ai-death's panel: respawn rules, treatment, medics and the hospitals. */
 export const deathSchema: PanelSchema = {
@@ -170,4 +175,4 @@ export const deathSchema: PanelSchema = {
       ],
     },
   ],
-}
+};
