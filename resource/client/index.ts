@@ -4,6 +4,7 @@ import {
   cache,
   callAction,
   every,
+  fadeIn,
   fadeOut,
   GlobalKey,
   hidePrompt,
@@ -78,19 +79,33 @@ class Death {
   revive(
     point: { x: number; y: number; z: number; heading: number } | null,
   ): void {
-    const at = point ?? { ...player.coords(), heading: player.heading() };
-    if (IsEntityDead(cache.ped) || point) {
-      void fadeOut().then(() => {
-        NetworkResurrectLocalPlayer(at.x, at.y, at.z, at.heading, 0, false);
-        DoScreenFadeIn(600);
-        this.heal();
-      });
-    } else this.heal();
+    if (IsEntityDead(cache.ped) || point) void this.resurrect(point);
+    else this.heal();
     this.down = false;
     this.reported = false;
     if (this.respawnTimer) clearTimeout(this.respawnTimer);
     hidePrompt(RESPAWN_PROMPT);
     send({ action: "up", data: null });
+  }
+
+  /** Behind a fade: up in place, then (hospital) to the point with its collision loaded, then the fade clears. */
+  private async resurrect(
+    point: { x: number; y: number; z: number; heading: number } | null,
+  ): Promise<void> {
+    const here = player.coords();
+    await fadeOut();
+    NetworkResurrectLocalPlayer(
+      here.x,
+      here.y,
+      here.z,
+      player.heading(),
+      0,
+      false,
+    );
+    this.heal();
+    if (point)
+      await player.teleport(point, { heading: point.heading, fade: false });
+    await fadeIn(600);
   }
 
   private heal(): void {
