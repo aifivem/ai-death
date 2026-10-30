@@ -19,11 +19,11 @@ dependencies {
 
 files {
 	'locales/*.json',
-	'dist/web/*.html',
 	'dist/web/assets/*.js',
 	'dist/web/assets/*.css',
 	'dist/web/assets/*.woff',
 	'dist/web/assets/*.woff2',
+	'dist/web/*.html',
 	'data/settings.json',
 	'data/hospitals.json',
 }
