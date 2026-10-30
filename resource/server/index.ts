@@ -1,4 +1,4 @@
-import { AdminPanel, aiLog, aiLogChannels, notify, onClientCallback, onClientEvent, optionalExport, provideExport, registerExport, resourceExport } from "@aicore-fivem/lib/server";
+import { AdminPanel, aiLog, aiLogChannels, inventory, notify, onClientCallback, onClientEvent, provideExport, registerExport, resourceExport } from "@aicore-fivem/lib/server";
 import { CORE, type CharacterInfo } from "@aicore-fivem/shared";
 import { Locale } from "common";
 import { DEAD_META, EVENTS, readHospitals, readSettings, type Hospital } from "common/death";
@@ -91,7 +91,7 @@ onClientCallback(
   const fee = content.settings.respawnFee;
   // A fee nobody can pay is waived: nobody stays dead for being broke.
   if (fee > 0) content.settings.accounts.some((a) => core.RemoveMoney(source, a, fee, "hospital"));
-  if (content.settings.clearInventory) optionalExport("ai-inventory")?.ClearInventory(source);
+  if (content.settings.clearInventory) inventory.clearInventory(source);
   downed.up(source, hospital.respawn);
   return { ok: true };
   },
@@ -108,7 +108,7 @@ onClientCallback(EVENTS.treat, { args: ([id]) => (typeof id === "string" ? [id] 
   return { ok: true };
 });
 
-/** The medikit (ai-inventory): a medic on duty revives the closest downed player; anyone else heals themselves. */
+/** The medikit: a medic on duty revives the closest downed player; anyone else heals themselves. */
 function useMedikit(source: number): boolean {
   const p = pos(source);
   if (isEms(source)) {
@@ -128,10 +128,7 @@ function useMedikit(source: number): boolean {
   return true;
 }
 
-const inventory = optionalExport("ai-inventory");
-const registerMedikit = () => optionalExport("ai-inventory")?.RegisterUsableItem("medikit", (source: number) => useMedikit(source));
-if (inventory) registerMedikit();
-on("onServerResourceStart", (resource: string) => resource === "ai-inventory" && registerMedikit());
+inventory.registerUsableItem("medikit", (source: number) => useMedikit(source));
 
 on(CORE.playerLoadedEvent, (source: number, _character: CharacterInfo) => {
   if (core.GetMeta(source, DEAD_META) === true) setTimeout(() => downed.down(source), 2000);
