@@ -2,6 +2,7 @@ import {
   bool,
   int,
   num,
+  readBlipStyle,
   record,
   str,
   vec4,
@@ -79,11 +80,7 @@ export function readHospital(id: string, v: Record<string, unknown>): Hospital {
       z: num(c.z, respawn.z),
     },
     blip: bool(v.blip, true),
-    blipStyle: {
-      sprite: int(style.sprite, 61, 0, 1000),
-      color: int(style.color, 1, 0, 100),
-      scale: num(style.scale, 0.7, 0.3, 2),
-    },
+    blipStyle: readBlipStyle(style, { sprite: 61, color: 1, scale: 0.7 }),
   };
 }
 

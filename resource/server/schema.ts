@@ -1,4 +1,5 @@
 import type { PanelSchema } from "@aicore-fivem/shared";
+import { BLIP_STYLE_FIELDS } from "@aicore-fivem/lib/shared";
 
 const money = {
   type: "number",
@@ -50,11 +51,7 @@ export const deathSchema: PanelSchema = {
         blipStyle: {
           type: "object",
           optional: true,
-          fields: {
-            sprite: { type: "number", min: 0, max: 1000, integer: true },
-            color: { type: "number", min: 0, max: 100, integer: true },
-            scale: { type: "number", min: 0.3, max: 2 },
-          },
+          fields: BLIP_STYLE_FIELDS,
         },
       },
     },
