@@ -1,4 +1,4 @@
-import { AdminPanel, aiLog, aiLogChannels, inventory, notify, onClientCallback, onClientEvent, provideExport, registerExport, resourceExport } from "@aicore-fivem/lib/server";
+import { AdminPanel, aiLog, aiLogChannels, inventory, notify, onClientCallback, onClientEvent, playersNear, provideExport, registerExport, resourceExport } from "@aicore-fivem/lib/server";
 import { CORE, PED_DEATH_STATE_KEY, type CharacterInfo } from "@aicore-fivem/shared";
 import { Locale } from "common";
 import { DEAD_META, EVENTS, readHospitals, readSettings, type Hospital } from "common/death";
@@ -116,13 +116,8 @@ onClientCallback(EVENTS.treat, { args: ([id]) => (typeof id === "string" ? [id] 
 
 /** The medikit: a medic on duty revives the closest downed player; anyone else heals themselves. */
 function useMedikit(source: number): boolean {
-  const p = pos(source);
   if (isEms(source)) {
-    const target = core.GetLoadedSources().find((t) => {
-      if (t === source || !downed.isDown(t)) return false;
-      const q = pos(t);
-      return Math.hypot(p.x - q.x, p.y - q.y, p.z - q.z) <= 3;
-    });
+    const target = playersNear(source, 3).find((t) => t !== source && downed.isDown(t));
     if (target !== undefined) {
       downed.up(target, null);
       notify(source, Locale("DEATH_REVIVED_OTHER"), "success");
