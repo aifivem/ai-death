@@ -1,6 +1,6 @@
 # ai-death
 
-Death and hospitals: a downed character waits for a medic (medikit revive) or, after a timer, wakes up at the nearest hospital for a fee; paid check-in treatment when few medics are on duty. Depends on ai-core (metadata, money, duty counts, prompts, admin panel); the active inventory through ai-core's inventory layer (lib `inventory`) (medikit, optional clearing). Research and decisions: `docs/research/ai-death.md`.
+Death and hospitals: a downed character waits for a medic (medikit revive) or, after a timer, wakes up at the nearest hospital for a fee; paid check-in treatment when few medics are on duty. Depends on ai-core (metadata, money, duty counts, prompts, admin panel); the active inventory through ai-core's inventory layer (lib `inventory`) (medikit, optional clearing).
 
 ## Decisions
 
