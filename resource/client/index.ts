@@ -1,4 +1,5 @@
 import { AdminWorld, cache, hidePrompt, loadLocaleTexts, notify, onPromptPressed, onServerEvent, showPrompt, triggerServerCallback, Zones } from "@aicore-fivem/lib/client";
+import { PED_DEATH_STATE_KEY } from "@aicore-fivem/shared";
 import { Locale } from "common";
 import { EVENTS, readHospitals, readSettings, type NuiMessage } from "common/death";
 
@@ -15,7 +16,7 @@ const errorText = (v: unknown, fallback: string): string => {
 };
 
 /**
- * The player's own death: a 500 ms check reports the death once; while down the ped stays dead (the game blocks
+ * The player's own death: the server sees it (FXServer 38039+) or a 500 ms check reports it once; while down the ped stays dead (the game blocks
  * control), the screen shows the countdown and, when it ends, ai-core's prompt offers the hospital.
  */
 class Death {
@@ -24,7 +25,8 @@ class Death {
   private respawnTimer: ReturnType<typeof setTimeout> | null = null;
 
   watch(): void {
-    if (this.reported || !IsEntityDead(cache.ped)) return;
+    // The server reports deaths itself on FXServer 38039+ (ai-core's PED_DEATH_STATE_KEY): nothing to watch then.
+    if (this.reported || GlobalState[PED_DEATH_STATE_KEY] === true || !IsEntityDead(cache.ped)) return;
     this.reported = true;
     emitNet(EVENTS.died);
   }

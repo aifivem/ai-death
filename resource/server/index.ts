@@ -1,5 +1,5 @@
 import { AdminPanel, aiLog, aiLogChannels, inventory, notify, onClientCallback, onClientEvent, provideExport, registerExport, resourceExport } from "@aicore-fivem/lib/server";
-import { CORE, type CharacterInfo } from "@aicore-fivem/shared";
+import { CORE, PED_DEATH_STATE_KEY, type CharacterInfo } from "@aicore-fivem/shared";
 import { Locale } from "common";
 import { DEAD_META, EVENTS, readHospitals, readSettings, type Hospital } from "common/death";
 import { deathSchema } from "./schema";
@@ -73,12 +73,18 @@ const isEms = (source: number): boolean => {
   return duty !== null && content.settings.emsJobs.includes(duty);
 };
 
-onClientEvent(EVENTS.died, (source) => {
+function wentDown(source: number, killer: number | null = null): void {
   if (downed.isDown(source) || !core.GetCharacter(source)) return;
-  // The ped's health is synced to the server: a client cannot claim a death that did not happen.
-  if (GetEntityHealth(GetPlayerPed(String(source))) > 0) return;
   downed.down(source);
-  aiLog("deaths", "went down", { source, metadata: pos(source) });
+  aiLog("deaths", "went down", { source, target: killer ?? undefined, metadata: pos(source) });
+}
+
+// FXServer 38039+ reports the death from the synced health itself (ai-core's playerDied); older builds rely on the
+// client's report, checked against the synced health so a client cannot claim a death that did not happen.
+on(CORE.playerDiedEvent, (source: number, killer: number | null) => wentDown(source, killer));
+onClientEvent(EVENTS.died, (source) => {
+  if (GlobalState[PED_DEATH_STATE_KEY] === true || GetEntityHealth(GetPlayerPed(String(source))) > 0) return;
+  wentDown(source);
 });
 
 onClientCallback(

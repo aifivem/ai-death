@@ -131,6 +131,8 @@ const CORE = {
 	inventoryChangedEvent: "ai-core:inventoryChanged",
 	/** (src, name: string, status: Record<string, number> | null) a player used an item; status = the needs it gives, from inventories that define them. */
 	itemUsedEvent: "ai-core:itemUsed",
+	/** (src, killer: number | null, weaponHash: number) a player with a loaded character died; fired from FXServer's `onPedDeath` (needs `PED_DEATH_STATE_KEY`). */
+	playerDiedEvent: "ai-core:playerDied",
 	clientPlayerLoadedEvent: "ai-core:client:playerLoaded",
 	clientPlayerUnloadedEvent: "ai-core:client:playerUnloaded",
 	/** (charId: number, url: string) a portrait image of a character on the character screen (e.g. `https://nui-img/<txd>/<txd>`). */
@@ -152,6 +154,8 @@ const CORE = {
 	/** Server -> client: () the character was let go (switch); show the character screen again. */
 	openCharactersEvent: "ai-core:client:openCharacters"
 };
+/** GlobalState key: true when the server reports player deaths itself (FXServer 38039+ `onPedDeath`), so clients need not watch their health. */
+const PED_DEATH_STATE_KEY = "ai:pedDeath";
 
 // ../../../packages/shared/src/admin.ts
 /** Event names of the admin panel (owned by ai-core). */
@@ -25032,14 +25036,19 @@ const isEms = (source) => {
 	const duty = core.GetDutyJob(source);
 	return duty !== null && content.settings.emsJobs.includes(duty);
 };
-onClientEvent(EVENTS.died, (source) => {
+function wentDown(source, killer = null) {
 	if (downed.isDown(source) || !core.GetCharacter(source)) return;
-	if (GetEntityHealth(GetPlayerPed(String(source))) > 0) return;
 	downed.down(source);
 	aiLog("deaths", "went down", {
 		source,
+		target: killer ?? void 0,
 		metadata: pos(source)
 	});
+}
+on(CORE.playerDiedEvent, (source, killer) => wentDown(source, killer));
+onClientEvent(EVENTS.died, (source) => {
+	if (GlobalState["ai:pedDeath"] === true || GetEntityHealth(GetPlayerPed(String(source))) > 0) return;
+	wentDown(source);
 });
 onClientCallback(EVENTS.respawn, (source) => {
 	if (!downed.isDown(source)) return fail("DEATH_ERR_ALIVE");

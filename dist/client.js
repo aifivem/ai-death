@@ -145,6 +145,8 @@ try{
 		inventoryChangedEvent: "ai-core:inventoryChanged",
 		/** (src, name: string, status: Record<string, number> | null) a player used an item; status = the needs it gives, from inventories that define them. */
 		itemUsedEvent: "ai-core:itemUsed",
+		/** (src, killer: number | null, weaponHash: number) a player with a loaded character died; fired from FXServer's `onPedDeath` (needs `PED_DEATH_STATE_KEY`). */
+		playerDiedEvent: "ai-core:playerDied",
 		clientPlayerLoadedEvent: "ai-core:client:playerLoaded",
 		clientPlayerUnloadedEvent: "ai-core:client:playerUnloaded",
 		/** (charId: number, url: string) a portrait image of a character on the character screen (e.g. `https://nui-img/<txd>/<txd>`). */
@@ -166,6 +168,8 @@ try{
 		/** Server -> client: () the character was let go (switch); show the character screen again. */
 		openCharactersEvent: "ai-core:client:openCharacters"
 	};
+	/** GlobalState key: true when the server reports player deaths itself (FXServer 38039+ `onPedDeath`), so clients need not watch their health. */
+	const PED_DEATH_STATE_KEY = "ai:pedDeath";
 
 // ../../../packages/shared/src/admin.ts
 /** Event names of the admin panel (owned by ai-core). */
@@ -654,7 +658,7 @@ try{
 		return texts[key] ?? key;
 	};
 	/**
-	* The player's own death: a 500 ms check reports the death once; while down the ped stays dead (the game blocks
+	* The player's own death: the server sees it (FXServer 38039+) or a 500 ms check reports it once; while down the ped stays dead (the game blocks
 	* control), the screen shows the countdown and, when it ends, ai-core's prompt offers the hospital.
 	*/
 	var Death = class {
@@ -662,7 +666,7 @@ try{
 		down = false;
 		respawnTimer = null;
 		watch() {
-			if (this.reported || !IsEntityDead(cache.ped)) return;
+			if (this.reported || GlobalState["ai:pedDeath"] === true || !IsEntityDead(cache.ped)) return;
 			this.reported = true;
 			emitNet(EVENTS.died);
 		}
