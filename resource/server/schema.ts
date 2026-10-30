@@ -45,7 +45,7 @@ export const deathSchema: PanelSchema = {
             { widget: "number", path: "respawnSeconds", label: "ADMIN_F_RESPAWN_TIME", hint: "ADMIN_H_RESPAWN_TIME", min: 0, max: 3600, step: 30, unit: "s" },
             { widget: "number", path: "respawnFee", label: "ADMIN_F_RESPAWN_FEE", hint: "ADMIN_H_RESPAWN_FEE", min: 0, max: 1_000_000, step: 100, unit: "$" },
             { widget: "switch", path: "clearInventory", label: "ADMIN_F_CLEAR", hint: "ADMIN_H_CLEAR" },
-            { widget: "tags", path: "accounts", label: "ADMIN_F_ACCOUNTS", hint: "ADMIN_H_ACCOUNTS", placeholder: "ADMIN_P_ACCOUNTS" },
+            { widget: "tags", lookup: "account", path: "accounts", label: "ADMIN_F_ACCOUNTS", hint: "ADMIN_H_ACCOUNTS", placeholder: "ADMIN_P_ACCOUNTS" },
           ],
         },
         {
@@ -53,7 +53,7 @@ export const deathSchema: PanelSchema = {
           title: "ADMIN_C_MEDICS",
           desc: "ADMIN_C_MEDICS_DESC",
           fields: [
-            { widget: "tags", path: "emsJobs", label: "ADMIN_F_EMS_JOBS", hint: "ADMIN_H_EMS_JOBS", placeholder: "ADMIN_P_EMS_JOBS" },
+            { widget: "tags", lookup: "job", path: "emsJobs", label: "ADMIN_F_EMS_JOBS", hint: "ADMIN_H_EMS_JOBS", placeholder: "ADMIN_P_EMS_JOBS" },
             { widget: "number", path: "treatPrice", label: "ADMIN_F_TREAT_PRICE", hint: "ADMIN_H_TREAT_PRICE", min: 0, max: 1_000_000, step: 50, unit: "$" },
             { widget: "number", path: "treatMaxEms", label: "ADMIN_F_TREAT_MAX", hint: "ADMIN_H_TREAT_MAX", min: 0, max: 100 },
           ],
@@ -74,7 +74,7 @@ export const deathSchema: PanelSchema = {
           title: "ADMIN_C_HOSPITAL",
           desc: "ADMIN_C_HOSPITAL_DESC",
           fields: [
-            { widget: "text", path: "label", label: "ADMIN_F_LABEL", placeholder: "ADMIN_P_LABEL" },
+            { widget: "text", path: "label", suggest: { from: "respawn" }, label: "ADMIN_F_LABEL", placeholder: "ADMIN_P_LABEL" },
             { widget: "point", path: "respawn", label: "ADMIN_F_RESPAWN", hint: "ADMIN_H_RESPAWN", heading: true, ground: true },
             { widget: "point", path: "checkin", label: "ADMIN_F_CHECKIN", hint: "ADMIN_H_CHECKIN", ground: true },
             { widget: "switch", path: "blip", label: "ADMIN_F_BLIP" },
