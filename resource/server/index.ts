@@ -1,4 +1,19 @@
-import { AdminPanel, aiLog, aiLogChannels, GlobalKey, inventory, notify, onClientCallback, onClientEvent, playersNear, PlayerState, provideExport, registerExport, resourceExport, stateBoolean } from "@aicore-fivem/lib/server";
+import {
+  AdminPanel,
+  aiLog,
+  aiLogChannels,
+  GlobalKey,
+  inventory,
+  notify,
+  onClientCallback,
+  onClientEvent,
+  playersNear,
+  PlayerState,
+  provideExport,
+  registerExport,
+  resourceExport,
+  stateBoolean,
+} from "@aicore-fivem/lib/server";
 import {
   CORE,
   PED_DEATH_STATE_KEY,

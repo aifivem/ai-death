@@ -1,4 +1,20 @@
-import { AdminWorld, Blips, cache, fadeOut, GlobalKey, hidePrompt, loadLocaleTexts, notify, onPromptPressed, onServerEvent, player, Points, showPrompt, stateBoolean, triggerServerCallback } from "@aicore-fivem/lib/client";
+import {
+  AdminWorld,
+  Blips,
+  cache,
+  fadeOut,
+  GlobalKey,
+  hidePrompt,
+  loadLocaleTexts,
+  notify,
+  onPromptPressed,
+  onServerEvent,
+  player,
+  Points,
+  showPrompt,
+  stateBoolean,
+  triggerServerCallback,
+} from "@aicore-fivem/lib/client";
 import { PED_DEATH_STATE_KEY } from "@aicore-fivem/shared";
 import { Locale } from "common";
 import {
