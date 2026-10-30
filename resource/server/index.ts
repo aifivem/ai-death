@@ -96,12 +96,9 @@ function nearestHospital(source: number): Hospital | undefined {
   return best;
 }
 
-const emsOnDuty = (): number =>
-  settings.value.emsJobs.reduce((n, job) => n + online.onDutyFor(job).size, 0);
-const isEms = (source: number): boolean => {
-  const duty = online.dutyJob(source);
-  return duty !== null && settings.value.emsJobs.includes(duty);
-};
+const emsOnDuty = (): number => online.countOnDuty(settings.value.emsJobs);
+const isEms = (source: number): boolean =>
+  online.onDutyIn(source, settings.value.emsJobs);
 
 function wentDown(source: number, killer: number | null = null): void {
   if (downed.isDown(source) || !online.character(source)) return;

@@ -2,6 +2,8 @@ import {
   AdminWorld,
   Blips,
   cache,
+  callAction,
+  every,
   fadeOut,
   GlobalKey,
   hidePrompt,
@@ -13,7 +15,6 @@ import {
   Points,
   showPrompt,
   stateBoolean,
-  callAction,
 } from "@aicore-fivem/lib/client";
 import { isRecord, readFinite } from "@aicore-fivem/lib/shared";
 import { PED_DEATH_STATE_KEY } from "@aicore-fivem/shared";
@@ -105,7 +106,7 @@ class Death {
 }
 
 const death = new Death();
-setInterval(() => death.watch(), 500);
+every(500, () => death.watch(), { name: "death" });
 
 onServerEvent(
   EVENTS.down,
