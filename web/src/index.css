@@ -104,9 +104,6 @@
     border-color: rgba(255, 255, 255, 0.1);
     outline: none;
   }
-  :where(button, [role="button"], a, [tabindex]):not(input):focus-visible {
-    box-shadow: 0 0 0 0.2vh var(--green-60);
-  }
   :where(.uppercase:not(.font-display)) {
     letter-spacing: 0.04em;
   }
