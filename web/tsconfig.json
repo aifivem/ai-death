@@ -14,5 +14,10 @@
     "noEmit": true,
     "types": ["vite/client"]
   },
-  "include": ["src", "vite.config.ts", "../resource/common/death.ts", "../locales/en.json"]
+  "include": [
+    "src",
+    "vite.config.ts",
+    "../resource/common/death.ts",
+    "../locales/en.json"
+  ]
 }
