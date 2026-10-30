@@ -3,10 +3,55 @@
 @import "@fontsource/inter/500.css";
 @import "@fontsource/inter/600.css";
 @import "@fontsource/inter/700.css";
+@import "@fontsource/unbounded/800.css";
 @import "@fortawesome/fontawesome-svg-core/styles.css" layer(base);
 
-/* 10px = 1vh: every utility is in vh (tgiann-ui foundation). Colours: docs/design.md (Dark Minimal). */
+/* TGIANN look (docs/design.md): neutral near-black surfaces, white text, one accent green. 10px = 1vh. */
+:root {
+  --green: #36ff9f;
+  --green-hover: #2bcc7f;
+  --green-text: #333333;
+  --tgi-green-rgb: 54, 255, 159;
+  --green-10: rgba(54, 255, 159, 0.1);
+  --green-15: rgba(54, 255, 159, 0.15);
+  --green-20: rgba(54, 255, 159, 0.2);
+  --green-30: rgba(54, 255, 159, 0.3);
+  --green-40: rgba(54, 255, 159, 0.4);
+  --green-60: rgba(54, 255, 159, 0.6);
+  --radius: 0.6vh;
+}
+
 @theme inline {
+  --font-sans: "Inter", sans-serif;
+  --font-display: "Unbounded", "Inter", sans-serif;
+  --color-tgi-green: var(--green);
+  --color-tgi-green-hover: var(--green-hover);
+  --color-tgi-green-text: var(--green-text);
+  --color-tgi-green-10: var(--green-10);
+  --color-tgi-green-15: var(--green-15);
+  --color-tgi-green-20: var(--green-20);
+  --color-tgi-green-30: var(--green-30);
+  --color-tgi-green-40: var(--green-40);
+  --color-tgi-green-60: var(--green-60);
+  --color-panel: rgba(14, 14, 14, 0.95);
+  --color-page: #0e0e0e;
+  --color-header: #141414;
+  --color-surface: #181818;
+  --color-float: #161616;
+  --color-row: #111111;
+  --color-control: #222222;
+  --color-control-hover: #333333;
+  --color-line: rgba(255, 255, 255, 0.04);
+  --color-line-strong: rgba(255, 255, 255, 0.1);
+  --color-text: #ffffff;
+  --color-text-2: rgba(255, 255, 255, 0.8);
+  --color-text-3: rgba(255, 255, 255, 0.5);
+  --color-text-4: rgba(255, 255, 255, 0.22);
+  --color-danger: #f87171;
+  --color-danger-solid: #ef4444;
+  --color-danger-bg: rgba(239, 68, 68, 0.15);
+  --color-warn: #f5b742;
+
   --spacing: 0.4vh;
   --text-xs: 1.2vh;
   --text-xs--line-height: 1.6vh;
@@ -18,36 +63,14 @@
   --text-lg--line-height: 2.8vh;
   --text-xl: 2vh;
   --text-xl--line-height: 2.8vh;
-  --radius-sm: 0.4vh;
-  --radius-md: 0.6vh;
-  --radius-lg: 1vh;
-  --color-bg: var(--bg);
-  --color-panel: var(--panel);
-  --color-raised: var(--panel-raised);
-  --color-line: var(--line);
-  --color-line-strong: var(--line-strong);
-  --color-accent: var(--accent);
-  --color-accent-text: var(--accent-text);
-  --color-accent-hover: var(--accent-hover);
-  --color-text: var(--text);
-  --color-text-2: var(--text-2);
-  --color-text-3: var(--text-3);
-  --color-danger: var(--danger);
-  --color-warn: var(--warn);
-  --font-sans: "Inter", system-ui, sans-serif;
-  --animate-rise: rise 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) both;
-  --animate-fade: fade 0.25s ease-out both;
-}
+  --radius-sm: calc(var(--radius) - 0.4vh);
+  --radius-md: calc(var(--radius) - 0.2vh);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 0.4vh);
+  --radius-2xl: calc(var(--radius) + 0.8vh);
+  --radius-3xl: calc(var(--radius) + 1.2vh);
 
-@keyframes rise {
-  from {
-    opacity: 0;
-    transform: translateY(2vh);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  --animate-fade: fade 0.25s ease-out both;
 }
 
 @keyframes fade {
@@ -59,27 +82,6 @@
   }
 }
 
-:root {
-  --bg: #0b0e10;
-  --bg-rgb: 11, 14, 16;
-  --panel: #111619;
-  --panel-rgb: 17, 22, 25;
-  --panel-raised: #161c1f;
-  --line: #252d30;
-  --line-strong: #34403f;
-  --accent: #36ff9f;
-  --accent-hover: #2fe08c;
-  --accent-rgb: 54, 255, 159;
-  --accent-text: #0b0e10;
-  --text: #ffffff;
-  --text-2: #c9d1d3;
-  --text-3: #7d8a8e;
-  --danger: #f04a4a;
-  --danger-rgb: 240, 74, 74;
-  --warn: #f5b742;
-  --warn-rgb: 245, 183, 66;
-}
-
 @layer base {
   html,
   body,
@@ -89,17 +91,24 @@
     height: 100%;
     background: transparent;
     overflow: hidden;
-    user-select: none;
-    font-synthesis: none;
+    color: #ffffff;
     font-family: var(--font-sans);
-    color: var(--text);
+    font-size: 1.6vh;
+    font-synthesis: none;
+    user-select: none;
+    -webkit-font-smoothing: antialiased;
+  }
+  *,
+  ::before,
+  ::after {
+    border-color: rgba(255, 255, 255, 0.1);
+    outline: none;
   }
   :where(button, [role="button"], a, [tabindex]):not(input):focus-visible {
-    outline: 0.2vh solid var(--accent);
-    outline-offset: 0.2vh;
+    box-shadow: 0 0 0 0.2vh var(--green-60);
   }
-  :focus {
-    outline: none;
+  :where(.uppercase:not(.font-display)) {
+    letter-spacing: 0.04em;
   }
   button {
     cursor: pointer;
@@ -108,18 +117,27 @@
     width: 0.6vh;
     height: 0.6vh;
   }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
   ::-webkit-scrollbar-thumb {
-    background: var(--line);
-    border-radius: 0.3vh;
+    background: #333333;
+    border-radius: 999px;
   }
 }
 
+/* Scroll edges fade the rows themselves: only the edge that has more rows behind it. */
+@utility scroll-fade-top {
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 3vh);
+  mask-image: linear-gradient(to bottom, transparent 0, #000 3vh);
+}
 
-@keyframes progress-fill {
-  from {
-    transform: scaleX(0);
-  }
-  to {
-    transform: scaleX(1);
-  }
+@utility scroll-fade-bottom {
+  -webkit-mask-image: linear-gradient(to top, transparent 0, #000 3vh);
+  mask-image: linear-gradient(to top, transparent 0, #000 3vh);
+}
+
+@utility scroll-fade-both {
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 3vh, #000 calc(100% - 3vh), transparent 100%);
+  mask-image: linear-gradient(to bottom, transparent 0, #000 3vh, #000 calc(100% - 3vh), transparent 100%);
 }

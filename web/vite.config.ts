@@ -18,7 +18,8 @@ export default defineConfig({
     chunkSizeWarningLimit: 1000,
   },
   server: {
-    fs: { allow: [".."] },
+    // The workspace root node_modules holds the hoisted packages (fonts): without it the preview falls back to a system font.
+    fs: { allow: ["..", "../../../../node_modules"] },
   },
   // Old FiveM CEF (Chromium ~103): no oklch, color-mix or @media (hover: hover).
   css: {
