@@ -39,7 +39,7 @@
   "ADMIN_TAB_HOSPITALS": "Hospitals",
   "ADMIN_TAB_HOSPITALS_DESC": "Where players wake up and where they get treated.",
   "ADMIN_NEW_HOSPITAL": "New hospital",
-  "ADMIN_DELETE_HOSPITAL": "Delete this hospital?",
+  "ADMIN_DELETE_HOSPITAL": "Delete hospital",
   "ADMIN_C_HOSPITAL": "Hospital",
   "ADMIN_C_HOSPITAL_DESC": "Players wake up at the nearest hospital.",
   "ADMIN_F_LABEL": "Name",
