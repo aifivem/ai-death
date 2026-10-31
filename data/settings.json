@@ -12,5 +12,7 @@
   ],
   "treatPrice": 250,
   "treatMaxEms": 2,
-  "healthRegen": false
+  "healthRegen": false,
+  "reviveFee": 0,
+  "distressCooldown": 60
 }

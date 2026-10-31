@@ -1122,6 +1122,32 @@ var PlayerMap = class extends Map {
 			this.delete(source), options.onDrop?.(source, value);
 		});
 	}
+}, KeyedCooldowns = class {
+	until = new Map();
+	sweepAt = 64;
+	ready(key) {
+		return this.left(key) === 0;
+	}
+	start(key, ms) {
+		ms <= 0 ? this.until.delete(key) : (this.until.size >= this.sweepAt && this.sweep(), this.until.set(key, GetGameTimer() + ms));
+	}
+	take(key, ms) {
+		return this.ready(key) ? (this.start(key, ms), !0) : !1;
+	}
+	left(key) {
+		let until = this.until.get(key);
+		if (until === void 0) return 0;
+		let left = until - GetGameTimer();
+		return left > 0 ? left : (this.until.delete(key), 0);
+	}
+	clear(key) {
+		this.until.delete(key);
+	}
+	sweep() {
+		let now = GetGameTimer();
+		for (let [key, until] of this.until) until <= now && this.until.delete(key);
+		this.sweepAt = Math.max(64, this.until.size * 2);
+	}
 };
 function onCharacter(handlers) {
 	let live = new Map(), deliver = (source, character) => {
@@ -1349,7 +1375,15 @@ var PlayerState$1 = class extends Mirror {
 		Player(source).state.set(this.key, value ?? null, !0), this.put(source, value);
 	}
 };
-resourceExport(CORE.resource), resourceExport(CORE.resource), resourceExport(CORE.resource), resourceExport(CORE.resource), resourceExport(CORE.resource), resourceExport(CORE.resource), resourceExport(CORE.resource), resourceExport(CORE.resource), resourceExport(CORE.resource), resourceExport(CORE.resource);
+resourceExport(CORE.resource), resourceExport(CORE.resource), resourceExport(CORE.resource), resourceExport(CORE.resource), resourceExport(CORE.resource), resourceExport(CORE.resource), resourceExport(CORE.resource);
+// ../../../packages/lib/src/server/billing.ts
+const core$10 = resourceExport(CORE.resource), billing = {
+	send: (bill) => core$10.SendBill(bill),
+	unpaid: (source) => new Promise((resolve) => core$10.GetUnpaidBills(source, resolve)),
+	pay: (source, id) => core$10.PayBill(source, id),
+	provider: () => core$10.GetBillingSystem()
+};
+resourceExport(CORE.resource), resourceExport(CORE.resource);
 // ../../../packages/lib/src/server/ems.ts
 const core$7 = resourceExport(CORE.resource), ems = {
 	available: (jobs) => core$7.GetAvailableMedics(jobs),
@@ -1365,7 +1399,8 @@ const EVENTS = {
 	down: "ai-death:client:down",
 	revive: "ai-death:client:revive",
 	respawn: "ai-death:respawn",
-	treat: "ai-death:treat"
+	treat: "ai-death:treat",
+	distress: "ai-death:distress"
 }, DEAD_META = "isdead", names$1 = (v) => Array.isArray(v) ? v.filter((x) => typeof x == "string") : [];
 function readSettings(raw) {
 	let s = record(raw);
@@ -1377,7 +1412,9 @@ function readSettings(raw) {
 		emsJobs: names$1(s.emsJobs).length ? names$1(s.emsJobs) : ["ambulance"],
 		treatPrice: int(s.treatPrice, 250, 0, 1e6),
 		treatMaxEms: int(s.treatMaxEms, 2, 0, 100),
-		healthRegen: bool(s.healthRegen, !1)
+		healthRegen: bool(s.healthRegen, !1),
+		reviveFee: int(s.reviveFee, 0, 0, 1e6),
+		distressCooldown: int(s.distressCooldown, 60, 10, 3600)
 	};
 }
 function readHospital(id, v) {
@@ -1443,7 +1480,18 @@ const money = {
 					max: 100,
 					integer: !0
 				},
-				healthRegen: { type: "bool" }
+				healthRegen: { type: "bool" },
+				reviveFee: {
+					...money,
+					optional: !0
+				},
+				distressCooldown: {
+					type: "number",
+					min: 10,
+					max: 3600,
+					integer: !0,
+					optional: !0
+				}
 			}
 		},
 		hospitals: {
@@ -1569,6 +1617,26 @@ const money = {
 					hint: "ADMIN_H_TREAT_MAX",
 					min: 0,
 					max: 100
+				},
+				{
+					widget: "number",
+					path: "reviveFee",
+					label: "ADMIN_F_REVIVE_FEE",
+					hint: "ADMIN_H_REVIVE_FEE",
+					min: 0,
+					max: 1e6,
+					step: 50,
+					unit: "$"
+				},
+				{
+					widget: "number",
+					path: "distressCooldown",
+					label: "ADMIN_F_DISTRESS_COOLDOWN",
+					hint: "ADMIN_H_DISTRESS_COOLDOWN",
+					min: 10,
+					max: 3600,
+					step: 10,
+					unit: "s"
 				}
 			]
 		}]
@@ -1627,8 +1695,14 @@ const money = {
 }, deadState = new PlayerState(PLAYER_BAGS.dead, stateBoolean), core = resourceExport("ai-core"), panel = new AdminPanel(deathSchema), settings = panel.view("settings", readSettings), hospitals = panel.records("hospitals", readHospital);
 aiLogChannels({
 	deaths: {},
-	revives: {}
+	revives: {},
+	distress: {}
 });
+const calls = new KeyedCooldowns();
+function callLeft(source) {
+	let charId = online.charId(source);
+	return charId === void 0 ? 0 : Math.ceil(calls.left(charId) / 1e3);
+}
 const downed = new class {
 	since = new PlayerMap();
 	isDown(source) {
@@ -1637,7 +1711,7 @@ const downed = new class {
 	down(source, at = Date.now()) {
 		this.since.set(source, at), core.SetMeta(source, DEAD_META, !0), deadState.set(source, !0);
 		let left = Math.max(0, settings.value.respawnSeconds - Math.floor((Date.now() - at) / 1e3));
-		emitNet(EVENTS.down, source, left);
+		emitNet(EVENTS.down, source, left, emsAvailable(), callLeft(source));
 	}
 	up(source, point) {
 		this.since.delete(source), core.SetMeta(source, DEAD_META, !1), deadState.set(source, !1), emitNet(EVENTS.revive, source, point);
@@ -1678,14 +1752,60 @@ on(CORE.playerDiedEvent, (source, killer) => wentDown(source, killer)), onClient
 }, (source, id) => {
 	let hospital = hospitals.get(id);
 	return !hospital || !isNear(source, hospital.checkin, 3) ? fail("DEATH_ERR_FAR") : emsAvailable() > settings.value.treatMaxEms ? fail("DEATH_ERR_EMS_ONLINE") : settings.value.accounts.some((a) => core.RemoveMoney(source, a, settings.value.treatPrice, "hospital:treatment")) ? (downed.up(source, null), { ok: !0 }) : fail("DEATH_ERR_MONEY");
+}), onClientCallback(EVENTS.distress, (source) => {
+	if (!downed.isDown(source)) return fail("DEATH_ERR_ALIVE");
+	let charId = online.charId(source);
+	if (charId === void 0) return fail("DEATH_ERR_ALIVE");
+	let seconds = settings.value.distressCooldown;
+	if (!calls.take(charId, seconds * 1e3)) return fail("DEATH_ERR_DISTRESS_WAIT");
+	let jobs = settings.value.emsJobs;
+	return ems.distress(source, {
+		jobs,
+		message: Locale("DEATH_DISTRESS_MESSAGE")
+	}) ? (aiLog("distress", "called a doctor", {
+		source,
+		metadata: {
+			jobs,
+			...coordsOf(source)
+		}
+	}), {
+		ok: !0,
+		seconds
+	}) : (calls.clear(charId), fail("DEATH_ERR_DISTRESS"));
+}, {
+	lock: !0,
+	rate: {
+		count: 2,
+		windowMs: 5e3
+	}
 });
+function billRevive(medic, target) {
+	let amount = settings.value.reviveFee, job = online.dutyJob(medic);
+	if (amount <= 0 || !job) return;
+	let sent = billing.send({
+		to: target,
+		amount,
+		label: Locale("DEATH_BILL_REVIVE"),
+		from: medic,
+		job
+	});
+	aiLog("revives", sent ? "revive billed" : "revive bill refused", {
+		source: medic,
+		target,
+		level: sent ? "info" : "warn",
+		metadata: {
+			job,
+			amount
+		}
+	});
+}
 function useMedikit(source) {
 	if (isEms(source)) {
 		let target = playersNear(source, 3).find((t) => t !== source && downed.isDown(t));
 		if (target !== void 0) return downed.up(target, null), notify(source, Locale("DEATH_REVIVED_OTHER"), "success"), aiLog("revives", "revived a player", {
 			source,
 			target
-		}), !0;
+		}), billRevive(source, target), !0;
 	}
 	return emitNet(EVENTS.revive, source, null), !0;
 }

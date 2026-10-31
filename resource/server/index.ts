@@ -2,10 +2,12 @@ import {
   AdminPanel,
   aiLog,
   aiLogChannels,
+  billing,
   coordsOf,
   ems,
   inventory,
   isNear,
+  KeyedCooldowns,
   notify,
   onCharacter,
   onClientCallback,
@@ -37,7 +39,15 @@ const panel = new AdminPanel(deathSchema);
 /** Panel content, kept current by the panel. */
 const settings = panel.view("settings", readSettings);
 const hospitals = panel.records("hospitals", readHospital);
-aiLogChannels({ deaths: {}, revives: {} });
+aiLogChannels({ deaths: {}, revives: {}, distress: {} });
+
+/** Doctor calls by character id (a reconnect keeps the cooldown). */
+const calls = new KeyedCooldowns<number>();
+/** Whole seconds until the player's character may call a doctor again. */
+function callLeft(source: number): number {
+  const charId = online.charId(source);
+  return charId === undefined ? 0 : Math.ceil(calls.left(charId) / 1000);
+}
 
 /**
  * Who is down and since when (server clock). The state also lives in ai-core's metadata (`isdead`) so a character
@@ -58,7 +68,7 @@ class Downed {
       0,
       settings.value.respawnSeconds - Math.floor((Date.now() - at) / 1000),
     );
-    emitNet(EVENTS.down, source, left);
+    emitNet(EVENTS.down, source, left, emsAvailable(), callLeft(source));
   }
 
   up(source: number, point: Hospital["respawn"] | null): void {
@@ -154,6 +164,55 @@ onClientCallback(
   },
 );
 
+/**
+ * A downed player calls a doctor: a distress call to the panel's EMS jobs through ai-core's EMS layer, then the
+ * character's cooldown; the answer carries the seconds until the next call (the client counts them down).
+ */
+onClientCallback(
+  EVENTS.distress,
+  (source) => {
+    if (!downed.isDown(source)) return fail("DEATH_ERR_ALIVE");
+    const charId = online.charId(source);
+    if (charId === undefined) return fail("DEATH_ERR_ALIVE");
+    const seconds = settings.value.distressCooldown;
+    if (!calls.take(charId, seconds * 1000))
+      return fail("DEATH_ERR_DISTRESS_WAIT");
+    const jobs = settings.value.emsJobs;
+    if (
+      !ems.distress(source, { jobs, message: Locale("DEATH_DISTRESS_MESSAGE") })
+    ) {
+      calls.clear(charId);
+      return fail("DEATH_ERR_DISTRESS");
+    }
+    aiLog("distress", "called a doctor", {
+      source,
+      metadata: { jobs, ...coordsOf(source) },
+    });
+    return { ok: true, seconds };
+  },
+  { lock: true, rate: { count: 2, windowMs: 5000 } },
+);
+
+/** The revive fee: a bill from the medic's job to the revived player (paid later, never taken). */
+function billRevive(medic: number, target: number): void {
+  const amount = settings.value.reviveFee;
+  const job = online.dutyJob(medic);
+  if (amount <= 0 || !job) return;
+  const sent = billing.send({
+    to: target,
+    amount,
+    label: Locale("DEATH_BILL_REVIVE"),
+    from: medic,
+    job,
+  });
+  aiLog("revives", sent ? "revive billed" : "revive bill refused", {
+    source: medic,
+    target,
+    level: sent ? "info" : "warn",
+    metadata: { job, amount },
+  });
+}
+
 /** The medikit: a medic on duty revives the closest downed player; anyone else heals themselves. */
 function useMedikit(source: number): boolean {
   if (isEms(source)) {
@@ -164,6 +223,7 @@ function useMedikit(source: number): boolean {
       downed.up(target, null);
       notify(source, Locale("DEATH_REVIVED_OTHER"), "success");
       aiLog("revives", "revived a player", { source, target });
+      billRevive(source, target);
       return true;
     }
   }

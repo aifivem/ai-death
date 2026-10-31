@@ -12,7 +12,10 @@ import {
 /** ai-death's contracts and panel content. No natives. */
 
 export const EVENTS = {
-  /** Server -> owner: (seconds) the player is down; respawn opens after `seconds` (client clock). */
+  /**
+   * Server -> owner: (seconds, medics, callSeconds) the player is down; respawn opens after `seconds` (client clock),
+   * `medics` are free right now (one read), a doctor can be called again after `callSeconds`.
+   */
   down: "ai-death:client:down",
   /** Server -> owner: (point: Vec4 | null) back on their feet: at a hospital, or where they lie (revive). */
   revive: "ai-death:client:revive",
@@ -20,6 +23,8 @@ export const EVENTS = {
   respawn: "ai-death:respawn",
   /** Callback: (hospitalId) -> { ok } paid treatment at a check-in point. */
   treat: "ai-death:treat",
+  /** Callback: () -> { ok, seconds } a downed player calls a doctor; the next call opens after `seconds`. */
+  distress: "ai-death:distress",
 } as const;
 
 /** The metadata key ai-core keeps (QB's `isdead`, so a reconnect while dead stays dead). */
@@ -38,6 +43,10 @@ export interface Settings {
   treatMaxEms: number;
   /** GTA's own slow health refill (up to half health) stays on. */
   healthRegen: boolean;
+  /** A medikit revive bills the revived player this much from the medic's job (0 = free). */
+  reviveFee: number;
+  /** Seconds between two doctor calls of one character. */
+  distressCooldown: number;
 }
 
 export interface Hospital {
@@ -63,6 +72,8 @@ export function readSettings(raw: unknown): Settings {
     treatPrice: int(s.treatPrice, 250, 0, 1_000_000),
     treatMaxEms: int(s.treatMaxEms, 2, 0, 100),
     healthRegen: bool(s.healthRegen, false),
+    reviveFee: int(s.reviveFee, 0, 0, 1_000_000),
+    distressCooldown: int(s.distressCooldown, 60, 10, 3600),
   };
 }
 
@@ -85,7 +96,20 @@ export function readHospital(id: string, v: Record<string, unknown>): Hospital {
   };
 }
 
-/** Client -> NUI messages. */
+/** Client -> NUI messages (times on the client clock). */
 export type NuiMessage =
-  | { action: "down"; data: { texts: Record<string, string>; until: number } }
+  | {
+      action: "down";
+      data: {
+        texts: Record<string, string>;
+        until: number;
+        /** Medics free when the player went down. */
+        medics: number;
+        /** The doctor call key ("" while unbound). */
+        callKey: string;
+        /** When the next doctor call opens (0 = now). */
+        callUntil: number;
+      };
+    }
+  | { action: "called"; data: { until: number } }
   | { action: "up"; data: null };

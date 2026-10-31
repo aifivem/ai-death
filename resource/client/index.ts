@@ -6,6 +6,7 @@ import {
   fadeIn,
   fadeOut,
   hidePrompt,
+  Keybind,
   loadLocaleTexts,
   notify,
   onCache,
@@ -42,14 +43,24 @@ const RESPAWN_PROMPT = "respawn";
 class Death {
   private down = false;
   private respawnTimer: ReturnType<typeof setTimeout> | null = null;
+  /** When the next doctor call opens (client clock); a call in flight blocks a second one. */
+  private callUntil = 0;
+  private calling = false;
 
-  setDown(seconds: number): void {
+  setDown(seconds: number, medics: number, callSeconds: number): void {
     this.down = true;
+    this.callUntil = callSeconds > 0 ? Date.now() + callSeconds * 1000 : 0;
     // Also a character loaded while down (reconnect), whose ped is alive.
     void pose.start();
     send({
       action: "down",
-      data: { texts, until: Date.now() + seconds * 1000 },
+      data: {
+        texts,
+        until: Date.now() + seconds * 1000,
+        medics,
+        callKey: callKey.currentKey,
+        callUntil: this.callUntil,
+      },
     });
     if (this.respawnTimer) clearTimeout(this.respawnTimer);
     this.respawnTimer = setTimeout(() => {
@@ -105,19 +116,42 @@ class Death {
   async respawn(): Promise<void> {
     await callAction(EVENTS.respawn, [], { fallback: "DEATH_ERR_WAIT" });
   }
+
+  /** Calls a doctor (the server checks the down state and the cooldown); the screen counts down to the next call. */
+  async callDoctor(): Promise<void> {
+    if (!this.down || this.calling || Date.now() < this.callUntil) return;
+    this.calling = true;
+    const reply = await callAction(EVENTS.distress, [], {
+      fallback: "DEATH_ERR_DISTRESS",
+    });
+    this.calling = false;
+    if (!reply || !this.down) return;
+    this.callUntil = Date.now() + (readFinite(reply.seconds) ?? 0) * 1000;
+    send({ action: "called", data: { until: this.callUntil } });
+  }
 }
 
 const death = new Death();
 
+// Down screen's doctor call; the key only acts while down (the screen shows the bound key).
+const callKey = new Keybind({
+  name: "death_distress",
+  description: Locale("KEYBIND_DISTRESS"),
+  defaultKey: "G",
+  onPressed: () => void death.callDoctor(),
+});
+
 onServerEvent(
   EVENTS.down,
   {
-    args: ([seconds]) => {
+    args: ([seconds, medics, call]): [number, number, number] | null => {
       const left = readFinite(seconds);
-      return left === null ? null : [left];
+      return left === null
+        ? null
+        : [left, readFinite(medics) ?? 0, readFinite(call) ?? 0];
     },
   },
-  (seconds) => death.setDown(seconds),
+  (seconds, medics, call) => death.setDown(seconds, medics, call),
 );
 type Point = { x: number; y: number; z: number; heading: number };
 /** null = revive in place; undefined = not a valid answer. */
