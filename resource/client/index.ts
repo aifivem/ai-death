@@ -23,6 +23,7 @@ import {
   readSettings,
   type NuiMessage,
 } from "common/death";
+import { pose } from "./pose";
 
 const world = new AdminWorld(["settings", "hospitals"]);
 const settings = world.view("settings", readSettings);
@@ -31,8 +32,8 @@ const send = (m: NuiMessage): void => SendNUIMessage(m);
 const RESPAWN_PROMPT = "respawn";
 
 /**
- * The player's own death: the server sees it (FXServer's `onPedDeath`); while down the ped stays dead (the game blocks
- * control), the screen shows the countdown and, when it ends, ai-core's prompt offers the hospital.
+ * The player's own death: the server sees it (FXServer's `onPedDeath`); while down the ped lies in a death animation
+ * (`pose.ts`), the screen shows the countdown and, when it ends, ai-core's prompt offers the hospital.
  */
 class Death {
   private down = false;
@@ -40,8 +41,8 @@ class Death {
 
   setDown(seconds: number): void {
     this.down = true;
-    // A character loaded while down (reconnect) has a living ped: put it down again.
-    if (!IsEntityDead(cache.ped)) SetEntityHealth(cache.ped, 0);
+    // Also a character loaded while down (reconnect), whose ped is alive.
+    void pose.start();
     send({
       action: "down",
       data: { texts, until: Date.now() + seconds * 1000 },
@@ -59,7 +60,10 @@ class Death {
   revive(
     point: { x: number; y: number; z: number; heading: number } | null,
   ): void {
-    if (IsEntityDead(cache.ped) || point) void this.resurrect(point);
+    // Still truly dead: the pose had not taken over yet.
+    const dead = IsEntityDead(cache.ped);
+    pose.stop(!point && !dead);
+    if (dead || point) void this.resurrect(point);
     else this.heal();
     this.down = false;
     if (this.respawnTimer) clearTimeout(this.respawnTimer);
