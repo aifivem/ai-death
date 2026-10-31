@@ -17,7 +17,7 @@ import {
   resourceExport,
   stateBoolean,
 } from "@aicore-fivem/lib/server";
-import { fail, oneArg, readText } from "@aicore-fivem/lib/shared";
+import { fail, nearestOf, oneArg, readText } from "@aicore-fivem/lib/shared";
 import { CORE, PLAYER_BAGS } from "@aicore-fivem/shared";
 import { Locale } from "common";
 import {
@@ -82,15 +82,10 @@ class Downed {
 
 const downed = new Downed();
 
+/** The hospital whose wake-up spot is nearest on the map (height ignored). */
 function nearestHospital(source: number): Hospital | undefined {
   const p = coordsOf(source);
-  let best: Hospital | undefined;
-  let bestDistance = Infinity;
-  for (const h of hospitals.values()) {
-    const d = Math.hypot(p.x - h.respawn.x, p.y - h.respawn.y);
-    if (d < bestDistance) [best, bestDistance] = [h, d];
-  }
-  return best;
+  return nearestOf(hospitals.values(), p, (h) => ({ ...h.respawn, z: p.z }));
 }
 
 const emsOnDuty = (): number => online.countOnDuty(settings.value.emsJobs);

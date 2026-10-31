@@ -14,7 +14,7 @@ import {
   Points,
   showPrompt,
 } from "@aicore-fivem/lib/client";
-import { isRecord, readFinite } from "@aicore-fivem/lib/shared";
+import { isRecord, readFinite, RecordObjects } from "@aicore-fivem/lib/shared";
 import { Locale } from "common";
 import {
   EVENTS,
@@ -25,7 +25,6 @@ import {
 
 const world = new AdminWorld(["settings", "hospitals"]);
 const settings = world.view("settings", readSettings);
-const hospitals = world.records("hospitals", readHospital);
 const texts = loadLocaleTexts();
 const send = (m: NuiMessage): void => SendNUIMessage(m);
 const RESPAWN_PROMPT = "respawn";
@@ -139,32 +138,34 @@ async function treat(hospitalId: string): Promise<void> {
   if (r) notify(Locale("DEATH_TREATED"), "success");
 }
 
-/** Hospitals: a blip at the wake-up spot and a check-in point each (paid treatment). */
+/** Hospitals: a blip at the wake-up spot and a check-in point each (paid treatment); an edit rebuilds only its own. */
 const points = new Points();
 const blips = new Blips();
-function rebuild(): void {
-  points.clear();
-  blips.clear();
-  const price = settings.value.treatPrice;
-  for (const h of hospitals.values()) {
-    points.add(`checkin:${h.id}`, {
+const hospitals = new RecordObjects(
+  world,
+  "hospitals",
+  readHospital,
+  (id, h) => {
+    points.add(`checkin:${id}`, {
       coords: h.checkin,
-      label: Locale("DEATH_PROMPT_TREAT", price),
+      label: Locale("DEATH_PROMPT_TREAT", settings.value.treatPrice),
       icon: "kit-medical",
-      onPressed: () => treat(h.id),
+      onPressed: () => treat(id),
     });
     if (h.blip)
-      blips.add(h.id, {
+      blips.add(id, {
         coords: h.respawn,
         label: h.label,
         ...h.blipStyle,
       });
-  }
-}
-
-rebuild();
-world.onChange("hospitals", rebuild);
-world.onChange("settings", rebuild);
+    return () => {
+      points.remove(`checkin:${id}`);
+      blips.remove(id);
+    };
+  },
+);
+// The treatment price in every check-in label is a setting.
+world.onChange("settings", () => hospitals.rebuildAll());
 
 // The respawn prompt is not at a place, so it stays a bare prompt.
 onPromptPressed((id) => {

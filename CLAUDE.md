@@ -19,5 +19,5 @@ Death and hospitals: a downed character waits for a medic (medikit revive) or, a
 ## Entry points
 
 - Server: down state, respawn, treatment, medikit `resource/server/index.ts`; panel `server/schema.ts`.
-- Client: down screen, revive, hospitals `resource/client/index.ts`.
+- Client: down screen, revive, hospitals (lib `RecordObjects`: an edited hospital rebuilds only its check-in point and blip, the treatment price setting all) `resource/client/index.ts`.
 - NUI: the down overlay `web/src/App.tsx` (`bun run webdev`, `?ready=1`).
