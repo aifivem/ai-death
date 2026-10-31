@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.3.0](https://github.com/aifivem/ai-death/compare/v0.2.0...v0.3.0) (2026-10-31)
+
+
+### New Features
+
+* death log names the cause (weapon hash) ([28d96c6](https://github.com/aifivem/ai-death/commit/28d96c64e31a7157154917f6966cf141a15c34c6))
+
+
+### Miscellaneous Chores
+
+* rebuild with the current lib ([9a24771](https://github.com/aifivem/ai-death/commit/9a24771ef99314e7a17ac554f9a12f2af885b6e2))
+
 ## [0.2.0](https://github.com/aifivem/ai-death/compare/v0.1.0...v0.2.0) (2026-10-31)
 
 
