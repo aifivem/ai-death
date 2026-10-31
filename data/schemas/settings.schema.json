@@ -35,7 +35,7 @@
       "type": "boolean"
     },
     "emsJobs": {
-      "description": "Medic jobs: On-duty members of these jobs revive with a medikit.",
+      "description": "Medic jobs: On-duty members of these jobs revive with a medikit and get the doctor calls.",
       "type": "array",
       "maxItems": 10,
       "uniqueItems": true,
@@ -60,6 +60,18 @@
     "healthRegen": {
       "description": "Health refills by itself: GTA slowly gives back health (up to half) when you are not hurt for a while. Off: only healing, medics and items give health.",
       "type": "boolean"
+    },
+    "reviveFee": {
+      "description": "Revive fee: A medic's medikit revive sends the revived player a bill from the medic's job; the job's account gets it when they pay. 0 = free.",
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 1000000
+    },
+    "distressCooldown": {
+      "description": "Doctor call wait: Seconds a downed player waits between two doctor calls.",
+      "type": "integer",
+      "minimum": 10,
+      "maximum": 3600
     }
   },
   "required": [
