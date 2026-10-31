@@ -104,20 +104,27 @@ const emsAvailable = (): number => ems.available(settings.value.emsJobs);
 const isEms = (source: number): boolean =>
   online.onDutyIn(source, settings.value.emsJobs);
 
-function wentDown(source: number, killer: number | null = null): void {
+function wentDown(
+  source: number,
+  killer: number | null = null,
+  weapon?: number,
+): void {
   if (downed.isDown(source) || !online.character(source)) return;
   downed.down(source);
+  // The weapon hash names the cause (WEAPON_FALL, WEAPON_DROWNING, a gun...): what killed a player is the first question.
   aiLog("deaths", "went down", {
     source,
     target: killer ?? undefined,
-    metadata: { ...coordsOf(source) },
+    metadata: { weapon, ...coordsOf(source) },
   });
 }
 
 // FXServer 38039+ reports the death from the synced health itself (ai-core's playerDied); older builds rely on the
 // client's report, checked against the synced health so a client cannot claim a death that did not happen.
-on(CORE.playerDiedEvent, (source: number, killer: number | null) =>
-  wentDown(source, killer),
+on(
+  CORE.playerDiedEvent,
+  (source: number, killer: number | null, weapon: number) =>
+    wentDown(source, killer, weapon),
 );
 onClientCallback(
   EVENTS.respawn,
