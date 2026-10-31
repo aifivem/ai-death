@@ -22,11 +22,11 @@
     "webdev": "bun --cwd web vite"
   },
   "dependencies": {
-    "@aicore-fivem/lib": "^0.1.0",
-    "@aicore-fivem/shared": "^0.1.0"
+    "@aicore-fivem/lib": "workspace:*",
+    "@aicore-fivem/shared": "workspace:*"
   },
   "devDependencies": {
-    "@aicore-fivem/build": "^0.1.0",
+    "@aicore-fivem/build": "workspace:*",
     "@citizenfx/client": "latest",
     "@citizenfx/server": "latest",
     "@types/bun": "latest",

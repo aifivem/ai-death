@@ -8,7 +8,7 @@
     "build": "tsc --noEmit && vite build"
   },
   "dependencies": {
-    "@aicore-fivem/shared": "^0.1.0",
+    "@aicore-fivem/shared": "workspace:*",
     "@fontsource/inter": "^5.2.8",
     "@fontsource/unbounded": "^5.3.0",
     "@fortawesome/fontawesome-svg-core": "^7.2.0",
