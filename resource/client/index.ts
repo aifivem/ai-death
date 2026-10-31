@@ -24,6 +24,10 @@ import {
   type NuiMessage,
 } from "common/death";
 import { pose } from "./pose";
+import { NUI_LAYER } from "@aicore-fivem/shared";
+
+// Stacking among NUI pages (`NUI_LAYER`): set at start, not left to load order.
+SetNuiZindex(NUI_LAYER.death);
 
 const world = new AdminWorld(["settings", "hospitals"]);
 const settings = world.view("settings", readSettings);
