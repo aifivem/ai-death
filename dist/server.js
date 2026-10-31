@@ -1110,17 +1110,7 @@ createLogger(resource), new class {
 			if (name === resource) for (let command of this.list) for (let n of command.info.names) emitNet("chat:removeSuggestion", -1, `/${n}`);
 		});
 	}
-}();
-// ../../../packages/lib/src/server/netEvent.ts
-const log$1 = createLogger(GetCurrentResourceName());
-function onClientEvent(name, first, second) {
-	let [handler, options] = typeof first == "function" ? [first, second ?? {}] : [second, first], gate = new ClientGate(name, options, 10);
-	onNet(name, (...raw) => {
-		let source = Number(globalThis.source), args = gate.check(source, raw);
-		args && gate.run(source, void 0, () => handler(source, ...args)).catch((error) => log$1.error(`event ${name} failed for ${source}`, error));
-	});
-}
-createLogger("aicore-lib");
+}(), createLogger(GetCurrentResourceName()), createLogger("aicore-lib");
 // ../../../packages/lib/src/fivem/scheduler.ts
 var Group = class {
 	interval;
@@ -1251,25 +1241,9 @@ var Mirror = class {
 	forget(serverId) {
 		this.values.delete(serverId), this.seen.delete(serverId);
 	}
-}, GlobalKey$1 = class extends Mirror {
-	constructor(key, parse) {
-		super(key, parse);
-		let raw = GlobalState[key];
-		this.values.set("global", raw == null ? void 0 : parse(raw)), AddStateBagChangeHandler(key, "global", (_bag, _key, value) => this.store("global", value));
-	}
-	get() {
-		return this.values.get("global");
-	}
-	put(value) {
-		this.apply("global", value);
-	}
 }, PlayerState = class extends PlayerState$1 {
 	set(source, value) {
 		Player(source).state.set(this.key, value ?? null, !0), this.put(source, value);
-	}
-}, GlobalKey = class extends GlobalKey$1 {
-	set(value) {
-		GlobalState.set(this.key, value ?? null, !0), this.put(value);
 	}
 };
 resourceExport(CORE.resource), resourceExport(CORE.resource), resourceExport(CORE.resource), resourceExport(CORE.resource), resourceExport(CORE.resource), resourceExport(CORE.resource), resourceExport(CORE.resource), resourceExport(CORE.resource), resourceExport(CORE.resource), resourceExport(CORE.resource);
@@ -1278,7 +1252,6 @@ const Locale = createLocale();
 GetCurrentResourceName(), IsDuplicityVersion();
 // resource/common/death.ts
 const EVENTS = {
-	died: "ai-death:died",
 	down: "ai-death:client:down",
 	revive: "ai-death:client:revive",
 	respawn: "ai-death:respawn",
@@ -1533,7 +1506,7 @@ const money = {
 			]
 		}]
 	}]
-}, serverDeaths = new GlobalKey("ai:pedDeath", stateBoolean), deadState = new PlayerState(PLAYER_BAGS.dead, stateBoolean), core = resourceExport("ai-core"), panel = new AdminPanel(deathSchema), settings = panel.view("settings", readSettings), hospitals = panel.records("hospitals", readHospital);
+}, deadState = new PlayerState(PLAYER_BAGS.dead, stateBoolean), core = resourceExport("ai-core"), panel = new AdminPanel(deathSchema), settings = panel.view("settings", readSettings), hospitals = panel.records("hospitals", readHospital);
 aiLogChannels({
 	deaths: {},
 	revives: {}
@@ -1575,9 +1548,7 @@ function wentDown(source, killer = null) {
 		metadata: { ...coordsOf(source) }
 	}));
 }
-on(CORE.playerDiedEvent, (source, killer) => wentDown(source, killer)), onClientEvent(EVENTS.died, (source) => {
-	serverDeaths.get() === !0 || GetEntityHealth(GetPlayerPed(String(source))) > 0 || wentDown(source);
-}), onClientCallback(EVENTS.respawn, (source) => {
+on(CORE.playerDiedEvent, (source, killer) => wentDown(source, killer)), onClientCallback(EVENTS.respawn, (source) => {
 	if (!downed.isDown(source)) return fail("DEATH_ERR_ALIVE");
 	if (!downed.timerDone(source)) return fail("DEATH_ERR_WAIT");
 	let hospital = nearestHospital(source);

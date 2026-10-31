@@ -12,8 +12,6 @@ import {
 /** ai-death's contracts and panel content. No natives. */
 
 export const EVENTS = {
-  /** Client -> server: () the player's ped died. */
-  died: "ai-death:died",
   /** Server -> owner: (seconds) the player is down; respawn opens after `seconds` (client clock). */
   down: "ai-death:client:down",
   /** Server -> owner: (point: Vec4 | null) back on their feet: at a hospital, or where they lie (revive). */

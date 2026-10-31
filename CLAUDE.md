@@ -4,7 +4,7 @@ Death and hospitals: a downed character waits for a medic (medikit revive) or, a
 
 ## Decisions
 
-- The client reports its death once; the server accepts it only when the ped's synced health is 0. Down state: server memory, ai-core metadata `isdead` (a reconnect while down comes back down, QB's key) and the player state bag `dead`.
+- Deaths come from ai-core's `CORE.playerDiedEvent` (FXServer's `onPedDeath`; no client health watch). Down state: server memory, ai-core metadata `isdead` (a reconnect while down comes back down, QB's key) and the player state bag `dead`.
 - While down the ped stays dead (the game blocks control, no spawnmanager respawns it); the countdown runs on the client clock and ai-core's prompt offers the hospital when it ends. The server checks the time again.
 - Revive is in place (`NetworkResurrectLocalPlayer` at the ped's position); respawn is at the nearest hospital's wake-up spot. A fee nobody can pay is waived.
 - The medikit: an on-duty medic revives the closest downed player within 3 m; anyone else heals themselves.
@@ -19,5 +19,5 @@ Death and hospitals: a downed character waits for a medic (medikit revive) or, a
 ## Entry points
 
 - Server: down state, respawn, treatment, medikit `resource/server/index.ts`; panel `server/schema.ts`.
-- Client: death watch, revive, hospitals `resource/client/index.ts`.
+- Client: down screen, revive, hospitals `resource/client/index.ts`.
 - NUI: the down overlay `web/src/App.tsx` (`bun run webdev`, `?ready=1`).

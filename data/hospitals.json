@@ -3,17 +3,22 @@
   "pillbox": {
     "label": "Pillbox Medical",
     "respawn": {
-      "x": 311.8,
-      "y": -592.5,
-      "z": 43.28,
-      "heading": 340
+      "x": 353.1,
+      "y": -584.6,
+      "z": 43.11,
+      "heading": 152.08
     },
     "checkin": {
-      "x": 308.5,
-      "y": -595.3,
-      "z": 43.28
+      "x": 308.19,
+      "y": -595.35,
+      "z": 43.29
     },
-    "blip": true
+    "blip": true,
+    "blipStyle": {
+      "sprite": 61,
+      "color": 25,
+      "scale": 0.8
+    }
   },
   "sandy": {
     "label": "Sandy Shores Medical",
@@ -28,21 +33,31 @@
       "y": 3672.6,
       "z": 34.28
     },
-    "blip": true
+    "blip": true,
+    "blipStyle": {
+      "sprite": 61,
+      "color": 25,
+      "scale": 0.8
+    }
   },
   "paleto": {
     "label": "Paleto Bay Medical",
     "respawn": {
-      "x": -247.8,
-      "y": 6331.2,
-      "z": 32.43,
-      "heading": 225
+      "x": -252.43,
+      "y": 6312.25,
+      "z": 32.34,
+      "heading": 313.48
     },
     "checkin": {
-      "x": -254.9,
-      "y": 6331,
+      "x": -254.54,
+      "y": 6331.78,
       "z": 32.43
     },
-    "blip": true
+    "blip": false,
+    "blipStyle": {
+      "sprite": 61,
+      "color": 25,
+      "scale": 0.8
+    }
   }
 }

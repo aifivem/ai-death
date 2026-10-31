@@ -3,13 +3,11 @@ import {
   aiLog,
   aiLogChannels,
   coordsOf,
-  GlobalKey,
   inventory,
   isNear,
   notify,
   onCharacter,
   onClientCallback,
-  onClientEvent,
   online,
   PlayerMap,
   playersNear,
@@ -20,7 +18,7 @@ import {
   stateBoolean,
 } from "@aicore-fivem/lib/server";
 import { fail, oneArg, readText } from "@aicore-fivem/lib/shared";
-import { CORE, PED_DEATH_STATE_KEY, PLAYER_BAGS } from "@aicore-fivem/shared";
+import { CORE, PLAYER_BAGS } from "@aicore-fivem/shared";
 import { Locale } from "common";
 import {
   DEAD_META,
@@ -31,7 +29,6 @@ import {
 } from "common/death";
 import { deathSchema } from "./schema";
 
-const serverDeaths = new GlobalKey(PED_DEATH_STATE_KEY, stateBoolean);
 const deadState = new PlayerState(PLAYER_BAGS.dead, stateBoolean);
 
 const core = resourceExport("ai-core");
@@ -115,15 +112,6 @@ function wentDown(source: number, killer: number | null = null): void {
 on(CORE.playerDiedEvent, (source: number, killer: number | null) =>
   wentDown(source, killer),
 );
-onClientEvent(EVENTS.died, (source) => {
-  if (
-    serverDeaths.get() === true ||
-    GetEntityHealth(GetPlayerPed(String(source))) > 0
-  )
-    return;
-  wentDown(source);
-});
-
 onClientCallback(
   EVENTS.respawn,
   (source) => {

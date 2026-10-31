@@ -3,10 +3,8 @@ import {
   Blips,
   cache,
   callAction,
-  every,
   fadeIn,
   fadeOut,
-  GlobalKey,
   hidePrompt,
   loadLocaleTexts,
   notify,
@@ -15,10 +13,8 @@ import {
   player,
   Points,
   showPrompt,
-  stateBoolean,
 } from "@aicore-fivem/lib/client";
 import { isRecord, readFinite } from "@aicore-fivem/lib/shared";
-import { PED_DEATH_STATE_KEY } from "@aicore-fivem/shared";
 import { Locale } from "common";
 import {
   EVENTS,
@@ -26,8 +22,6 @@ import {
   readSettings,
   type NuiMessage,
 } from "common/death";
-
-const serverDeaths = new GlobalKey(PED_DEATH_STATE_KEY, stateBoolean);
 
 const world = new AdminWorld(["settings", "hospitals"]);
 const settings = world.view("settings", readSettings);
@@ -37,29 +31,15 @@ const send = (m: NuiMessage): void => SendNUIMessage(m);
 const RESPAWN_PROMPT = "respawn";
 
 /**
- * The player's own death: the server sees it (FXServer 38039+) or a 500 ms check reports it once; while down the ped stays dead (the game blocks
+ * The player's own death: the server sees it (FXServer's `onPedDeath`); while down the ped stays dead (the game blocks
  * control), the screen shows the countdown and, when it ends, ai-core's prompt offers the hospital.
  */
 class Death {
-  private reported = false;
   private down = false;
   private respawnTimer: ReturnType<typeof setTimeout> | null = null;
 
-  watch(): void {
-    // The server reports deaths itself on FXServer 38039+ (ai-core's PED_DEATH_STATE_KEY): nothing to watch then.
-    if (
-      this.reported ||
-      serverDeaths.get() === true ||
-      !IsEntityDead(cache.ped)
-    )
-      return;
-    this.reported = true;
-    emitNet(EVENTS.died);
-  }
-
   setDown(seconds: number): void {
     this.down = true;
-    this.reported = true;
     // A character loaded while down (reconnect) has a living ped: put it down again.
     if (!IsEntityDead(cache.ped)) SetEntityHealth(cache.ped, 0);
     send({
@@ -82,7 +62,6 @@ class Death {
     if (IsEntityDead(cache.ped) || point) void this.resurrect(point);
     else this.heal();
     this.down = false;
-    this.reported = false;
     if (this.respawnTimer) clearTimeout(this.respawnTimer);
     hidePrompt(RESPAWN_PROMPT);
     send({ action: "up", data: null });
@@ -121,7 +100,6 @@ class Death {
 }
 
 const death = new Death();
-every(500, () => death.watch(), { name: "death" });
 
 onServerEvent(
   EVENTS.down,
