@@ -9,7 +9,7 @@ Death and hospitals: a downed character waits for a medic (medikit revive) or, a
 - While down the ped lies in a death animation (owner decision, vLand tgiann-ambulance style; `client/pose.ts`): a dead ped plays no animation, so once it stops moving it is resurrected in place, made invincible, kept at full health and posed (`dead` clips, a seat slump in a vehicle, a ragdoll in water, nothing while carried); every control but look, chat, push to talk and pause is off. Client code therefore never asks `IsEntityDead` for "is the player down": the `dead` player bag is the truth. The countdown runs on the client clock and ai-core's prompt offers the hospital when it ends. The server checks the time again.
 - Revive is in place (`NetworkResurrectLocalPlayer` at the ped's position); respawn is at the nearest hospital's wake-up spot. A fee nobody can pay is waived.
 - The medikit: an on-duty medic revives the closest downed player within 3 m; anyone else heals themselves.
-- Down state on load follows lib `onCharacter` (also the players already in the game after a restart of ai-death: a stored `isdead` puts them down again); EMS counts and duty come from lib `online`.
+- Down state on load follows lib `onCharacter` (also the players already in the game after a restart of ai-death: a stored `isdead` puts them down again); duty comes from lib `online`; the check-in rule counts free medics through lib `ems.available` (an EMS script's own count such as tgiann-policealert's, which leaves busy medics out, else ai-core's duty counts).
 - Hospital blips: per hospital `blip` switch plus a `blipStyle` (panel `blip` widget).
 
 ## Contracts

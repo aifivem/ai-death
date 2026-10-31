@@ -3,6 +3,7 @@ import {
   aiLog,
   aiLogChannels,
   coordsOf,
+  ems,
   inventory,
   isNear,
   notify,
@@ -88,7 +89,8 @@ function nearestHospital(source: number): Hospital | undefined {
   return nearestOf(hospitals.values(), p, (h) => ({ ...h.respawn, z: p.z }));
 }
 
-const emsOnDuty = (): number => online.countOnDuty(settings.value.emsJobs);
+/** Medics free to take a call: an EMS script's own count (busy ones left out), else ai-core's duty counts. */
+const emsAvailable = (): number => ems.available(settings.value.emsJobs);
 const isEms = (source: number): boolean =>
   online.onDutyIn(source, settings.value.emsJobs);
 
@@ -134,7 +136,7 @@ onClientCallback(
     const hospital = hospitals.get(id);
     if (!hospital || !isNear(source, hospital.checkin, 3))
       return fail("DEATH_ERR_FAR");
-    if (emsOnDuty() > settings.value.treatMaxEms)
+    if (emsAvailable() > settings.value.treatMaxEms)
       return fail("DEATH_ERR_EMS_ONLINE");
     if (
       !settings.value.accounts.some((a) =>
