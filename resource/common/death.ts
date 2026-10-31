@@ -36,6 +36,8 @@ export interface Settings {
   treatPrice: number;
   /** Check-in treatment works only while at most this many medics are on duty. */
   treatMaxEms: number;
+  /** GTA's own slow health refill (up to half health) stays on. */
+  healthRegen: boolean;
 }
 
 export interface Hospital {
@@ -60,6 +62,7 @@ export function readSettings(raw: unknown): Settings {
     emsJobs: names(s.emsJobs).length ? names(s.emsJobs) : ["ambulance"],
     treatPrice: int(s.treatPrice, 250, 0, 1_000_000),
     treatMaxEms: int(s.treatMaxEms, 2, 0, 100),
+    healthRegen: bool(s.healthRegen, false),
   };
 }
 

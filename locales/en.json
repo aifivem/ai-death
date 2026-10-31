@@ -49,5 +49,7 @@
   "ADMIN_F_CHECKIN": "Check-in",
   "ADMIN_H_CHECKIN": "Where players pay for treatment.",
   "ADMIN_F_BLIP": "Map blip",
-  "ADMIN_F_BLIP_STYLE": "Blip look"
+  "ADMIN_F_BLIP_STYLE": "Blip look",
+  "ADMIN_F_HEALTH_REGEN": "Health refills by itself",
+  "ADMIN_H_HEALTH_REGEN": "GTA slowly gives back health (up to half) when you are not hurt for a while. Off: only healing, medics and items give health."
 }

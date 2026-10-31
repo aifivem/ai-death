@@ -4,6 +4,7 @@ Death and hospitals: a downed character waits for a medic (medikit revive) or, a
 
 ## Decisions
 
+- GTA's own health refill is a panel switch (`healthRegen`, default off, owner decision): the client sets `SetPlayerHealthRechargeMultiplier` to 0 or 1 at start, on every ped change (the multiplier resets when a clothing script swaps the ped) and on a settings change.
 - Deaths come from ai-core's `CORE.playerDiedEvent` (FXServer's `onPedDeath`; no client health watch). Down state: server memory, ai-core metadata `isdead` (a reconnect while down comes back down, QB's key) and the player state bag `dead`.
 - While down the ped stays dead (the game blocks control, no spawnmanager respawns it); the countdown runs on the client clock and ai-core's prompt offers the hospital when it ends. The server checks the time again.
 - Revive is in place (`NetworkResurrectLocalPlayer` at the ped's position); respawn is at the nearest hospital's wake-up spot. A fee nobody can pay is waived.

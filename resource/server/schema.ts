@@ -30,6 +30,7 @@ export const deathSchema: PanelSchema = {
         emsJobs: names,
         treatPrice: money,
         treatMaxEms: { type: "number", min: 0, max: 100, integer: true },
+        healthRegen: { type: "bool" },
       },
     },
     hospitals: {
@@ -94,6 +95,12 @@ export const deathSchema: PanelSchema = {
               path: "clearInventory",
               label: "ADMIN_F_CLEAR",
               hint: "ADMIN_H_CLEAR",
+            },
+            {
+              widget: "switch",
+              path: "healthRegen",
+              label: "ADMIN_F_HEALTH_REGEN",
+              hint: "ADMIN_H_HEALTH_REGEN",
             },
             {
               widget: "tags",

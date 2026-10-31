@@ -8,6 +8,7 @@ import {
   hidePrompt,
   loadLocaleTexts,
   notify,
+  onCache,
   onPromptPressed,
   onServerEvent,
   player,
@@ -174,3 +175,13 @@ onPromptPressed((id) => {
 
 // QB scripts and admin menus revive with this client event; only the server may send it.
 onServerEvent("hospital:client:Revive", () => death.revive(null));
+
+// GTA refills health slowly by itself; the panel decides. The multiplier resets with every ped change (clothing scripts).
+const applyRegen = () =>
+  SetPlayerHealthRechargeMultiplier(
+    PlayerId(),
+    settings.value.healthRegen ? 1.0 : 0.0,
+  );
+applyRegen();
+onCache("ped", applyRegen);
+world.onChange("settings", applyRegen);

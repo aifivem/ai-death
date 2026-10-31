@@ -56,6 +56,10 @@
       "type": "integer",
       "minimum": 0,
       "maximum": 100
+    },
+    "healthRegen": {
+      "description": "Health refills by itself: GTA slowly gives back health (up to half) when you are not hurt for a while. Off: only healing, medics and items give health.",
+      "type": "boolean"
     }
   },
   "required": [
@@ -65,6 +69,7 @@
     "clearInventory",
     "emsJobs",
     "treatPrice",
-    "treatMaxEms"
+    "treatMaxEms",
+    "healthRegen"
   ]
 }

@@ -11,5 +11,6 @@
     "ambulance"
   ],
   "treatPrice": 250,
-  "treatMaxEms": 2
+  "treatMaxEms": 2,
+  "healthRegen": false
 }
