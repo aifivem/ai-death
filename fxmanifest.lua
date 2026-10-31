@@ -1,6 +1,6 @@
 name 'ai-death'
 author 'TGIANN'
-version '0.1.0' -- x-release-please-version
+version '0.2.0' -- x-release-please-version
 license 'GPL-3.0-only'
 description 'Death, respawn at hospitals, EMS revive and treatment'
 repository 'https://github.com/aifivem/ai-death'
