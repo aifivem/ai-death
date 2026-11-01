@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.4.0](https://github.com/aifivem/ai-death/compare/v0.3.0...v0.4.0) (2026-11-01)
+
+
+### New Features
+
+* **death:** log the cause, killer and distance of a death ([9f186ed](https://github.com/aifivem/ai-death/commit/9f186ed5fef814ec0b98defc8d6c4b45bba53603))
+
+
+### Code Refactoring
+
+* feature folders, side entries that only import, panel schema per tab ([3bb974f](https://github.com/aifivem/ai-death/commit/3bb974faa075b384af3a10cfeb14afc0d8177cd7))
+
 ## [0.3.0](https://github.com/aifivem/ai-death/compare/v0.2.0...v0.3.0) (2026-10-31)
 
 

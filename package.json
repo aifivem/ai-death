@@ -1,6 +1,6 @@
 {
   "name": "ai-death",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "private": true,
   "description": "Death, respawn at hospitals, EMS revive and treatment",
   "license": "GPL-3.0-only",
