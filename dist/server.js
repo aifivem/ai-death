@@ -1756,17 +1756,25 @@ function nearestHospital(source) {
 	}));
 }
 const emsAvailable = () => ems.available(settings.value.emsJobs), isEms = (source) => online.onDutyIn(source, settings.value.emsJobs);
-function wentDown(source, killer = null, weapon) {
+function wentDown(source, killer = null, weapon, info) {
 	!downed.isDown(source) && online.character(source) && (downed.down(source), aiLog("deaths", "went down", {
 		source,
 		target: killer ?? void 0,
-		metadata: {
+		metadata: info ? {
+			weapon,
+			cause: info.cause,
+			killedBy: info.killedBy,
+			distance: info.distance,
+			inVehicle: info.inVehicle,
+			killerInVehicle: info.killerInVehicle,
+			...info.coords
+		} : {
 			weapon,
 			...coordsOf(source)
 		}
 	}));
 }
-on(CORE.playerDiedEvent, (source, killer, weapon) => wentDown(source, killer, weapon)), onClientCallback(EVENTS.respawn, (source) => {
+on(CORE.playerDiedEvent, (source, killer, weapon, info) => wentDown(source, killer, weapon, info)), onClientCallback(EVENTS.respawn, (source) => {
 	if (!downed.isDown(source)) return fail("DEATH_ERR_ALIVE");
 	if (!downed.timerDone(source)) return fail("DEATH_ERR_WAIT");
 	let hospital = nearestHospital(source);
