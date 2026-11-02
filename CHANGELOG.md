@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.4.1](https://github.com/aifivem/ai-death/compare/v0.4.0...v0.4.1) (2026-11-02)
+
+
+### Bug Fixes
+
+* **build:** keep the web build in dist/ so release zips have the NUI ([375c9f4](https://github.com/aifivem/ai-death/commit/375c9f491be93fc3ba22279bab6a5c306ded51d3))
+
+
+### Code Refactoring
+
+* import the shared packages from [@aifivem](https://github.com/aifivem) ([6cd122d](https://github.com/aifivem/ai-death/commit/6cd122db9fca7fec330d3d6f9103bfd8f4aaacb1))
+
 ## [0.4.0](https://github.com/aifivem/ai-death/compare/v0.3.0...v0.4.0) (2026-11-01)
 
 
