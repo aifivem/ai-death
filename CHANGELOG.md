@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.4.2](https://github.com/aifivem/ai-death/compare/v0.4.1...v0.4.2) (2026-11-02)
+
+
+### Documentation
+
+* install from the release zip ([96ee8c2](https://github.com/aifivem/ai-death/commit/96ee8c2dfd6105b2acebaf7bc94b795b4d124d7f))
+
+
+### Miscellaneous Chores
+
+* build files are no longer in git, the release zip carries them ([e6ee2eb](https://github.com/aifivem/ai-death/commit/e6ee2ebd18b6e724e7e7ee391430c35be469f6b8))
+
 ## [0.4.1](https://github.com/aifivem/ai-death/compare/v0.4.0...v0.4.1) (2026-11-02)
 
 
