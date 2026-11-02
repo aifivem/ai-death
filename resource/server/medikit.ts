@@ -5,7 +5,7 @@ import {
   notify,
   online,
   playersNear,
-} from "@aicore-fivem/lib/server";
+} from "@aifivem/lib/server";
 import { Locale } from "common";
 import { EVENTS } from "common/death";
 import { downed } from "./downed";

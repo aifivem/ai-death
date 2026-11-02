@@ -1,5 +1,5 @@
-import { onPromptPressed, onServerEvent } from "@aicore-fivem/lib/client";
-import { readFinite } from "@aicore-fivem/lib/shared";
+import { onPromptPressed, onServerEvent } from "@aifivem/lib/client";
+import { readFinite } from "@aifivem/lib/shared";
 import { EVENTS } from "common/death";
 import { death, RESPAWN_PROMPT } from "./death";
 import { toPoint, type Point } from "./point";

@@ -1,3 +1,3 @@
-import { resourceExport } from "@aicore-fivem/lib/server";
+import { resourceExport } from "@aifivem/lib/server";
 
 export const core = resourceExport("ai-core");

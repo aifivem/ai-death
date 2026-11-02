@@ -3,8 +3,8 @@ import {
   inventory,
   isNear,
   onClientCallback,
-} from "@aicore-fivem/lib/server";
-import { fail, nearestOf, oneArg, readText } from "@aicore-fivem/lib/shared";
+} from "@aifivem/lib/server";
+import { fail, nearestOf, oneArg, readText } from "@aifivem/lib/shared";
 import { EVENTS, type Hospital } from "common/death";
 import { core } from "./core";
 import { downed } from "./downed";

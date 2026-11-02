@@ -1,4 +1,4 @@
-import { isRecord, readFinite } from "@aicore-fivem/lib/shared";
+import { isRecord, readFinite } from "@aifivem/lib/shared";
 
 export type Point = { x: number; y: number; z: number; heading: number };
 /** null = revive in place; undefined = not a valid answer. */

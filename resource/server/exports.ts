@@ -1,4 +1,4 @@
-import { provideExport, registerExport } from "@aicore-fivem/lib/server";
+import { provideExport, registerExport } from "@aifivem/lib/server";
 import { EVENTS } from "common/death";
 import { downed } from "./downed";
 

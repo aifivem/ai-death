@@ -15,7 +15,7 @@ Death and hospitals: a downed character waits for a medic (medikit revive) or, a
 
 ## Contracts
 
-- Events: `resource/common/death.ts`. Exports `Revive(source)`, `IsDead(source)`, `Heal(source)` (typed in `@aicore-fivem/shared` `AiDeathServerExports`) (`qbx_medical` `Revive` / `IsDead` too); client event `hospital:client:Revive` from the server revives (QB scripts, admin menus).
+- Events: `resource/common/death.ts`. Exports `Revive(source)`, `IsDead(source)`, `Heal(source)` (typed in `@aifivem/shared` `AiDeathServerExports`) (`qbx_medical` `Revive` / `IsDead` too); client event `hospital:client:Revive` from the server revives (QB scripts, admin menus).
 - `Heal` on a downed player gets the ped up but keeps the down state: callers `Revive` first (`IsDead`).
 
 ## Entry points

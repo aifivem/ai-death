@@ -1,4 +1,4 @@
-import type { PanelSchema } from "@aicore-fivem/shared";
+import type { PanelSchema } from "@aifivem/shared";
 import { hospitalsFile, hospitalsTab } from "./hospitals";
 import { settingsFile, settingsTab } from "./settings";
 

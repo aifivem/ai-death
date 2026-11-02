@@ -1,4 +1,4 @@
-import { LangTexts } from "@aicore-fivem/lib/shared";
+import { LangTexts } from "@aifivem/lib/shared";
 import { useSyncExternalStore } from "react";
 
 /** Lang texts the client sends with the screen (this resource's locales, merged for the server language). */

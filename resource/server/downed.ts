@@ -1,5 +1,5 @@
-import { PlayerMap, PlayerState, stateBoolean } from "@aicore-fivem/lib/server";
-import { PLAYER_BAGS } from "@aicore-fivem/shared";
+import { PlayerMap, PlayerState, stateBoolean } from "@aifivem/lib/server";
+import { PLAYER_BAGS } from "@aifivem/shared";
 import { DEAD_META, EVENTS, type Hospital } from "common/death";
 import { core } from "./core";
 import { callLeft } from "./distress/cooldown";

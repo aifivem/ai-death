@@ -4,8 +4,8 @@ import {
   ems,
   onClientCallback,
   online,
-} from "@aicore-fivem/lib/server";
-import { fail } from "@aicore-fivem/lib/shared";
+} from "@aifivem/lib/server";
+import { fail } from "@aifivem/lib/shared";
 import { Locale } from "common";
 import { EVENTS } from "common/death";
 import { downed } from "../downed";

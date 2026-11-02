@@ -1,5 +1,5 @@
-import { loadLocaleTexts } from "@aicore-fivem/lib/client";
-import { NUI_LAYER } from "@aicore-fivem/shared";
+import { loadLocaleTexts } from "@aifivem/lib/client";
+import { NUI_LAYER } from "@aifivem/shared";
 import type { NuiMessage } from "common/death";
 
 // Stacking among NUI pages (`NUI_LAYER`): set at start, not left to load order.
